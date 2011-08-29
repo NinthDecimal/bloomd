@@ -6,9 +6,12 @@ import sys
 import os.path
 from ConfigParser import ConfigParser
 
-def read_config(filename='bloomd.cfg'):
+def read_config(filename=None):
+    if filename is None: filename='bloomd.cfg'
     cfp = ConfigParser()
-    cfp.read([filename])
+    read = cfp.read([filename])
+    if filename != 'bloomd.cfg' and filename not in read:
+        raise EnvironmentError, "Failed to read config file!"
 
     # Copy from defaults, update
     settings = dict(DEFAULTS)
@@ -41,7 +44,8 @@ def valid_data_dir(dir):
     if os.path.exists(dir) and not os.path.isdir(dir):
         raise EnvironmentError, "Providied data dir is not a directory!"
     try:
-        os.mkdir(dir)
+        if not os.path.exists(dir):
+            os.mkdir(dir)
     except:
         raise EnvironmentError, "Cannot create data directory!"
     try:
