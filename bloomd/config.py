@@ -50,6 +50,14 @@ def valid_data_dir(dir):
     except:
         raise EnvironmentError, "Cannot write to data directory!"
 
+def sane_log_file(log):
+    "Checks that the log file is sane"
+    try:
+        fh = open(log, "a+")
+        fh.close()
+    except:
+        raise EnvironmentError, "Cannot write to log file!"
+
 def sane_scale_size(scale):
     "Checks the scale size is sane"
     if scale < 2:
@@ -72,7 +80,7 @@ def valid_log_level(lvl):
 DEFAULTS = {
     "port" : 8673,
     "data_dir" : "/tmp/bloomd",
-    "log_file" : "/var/log/bloomd.log",
+    "log_file" : "/tmp/bloomd/bloomd.log",
     "log_level" : "DEBUG",
     "initial_size" : 16*1024*1024, # 32MB
     "scale_size" : 4,
@@ -87,5 +95,6 @@ VALIDATORS = {
     "scale_size": sane_scale_size,
     "default_probability": sane_probability,
     "log_level": valid_log_level,
+    "log_file": sane_log_file,
 }
 
