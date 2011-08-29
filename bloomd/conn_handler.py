@@ -4,10 +4,13 @@ the Twisted protocol we use to receive commands, as well as our
 API implementation which glues our interface to the internal models.
 """
 import logging
+import re
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import reactor, protocol
 from config import read_config
 from filter_manager import FilterManager
+
+VALID_NAMES = re.compile("[a-zA-Z0-9._]+")
 
 class APIHandler(object):
     "Implements the commands of our API. Method names map to the command name"
@@ -20,7 +23,7 @@ class APIHandler(object):
         name = args[0]
 
         # Sanity check the name
-        if "/" in name or " " in name:
+        if not VALID_NAMES.match(name):
             return "Client Error: Bad collection name"
 
         # Creates a new filter
@@ -28,8 +31,11 @@ class APIHandler(object):
             return "Exists"
 
         # Create a new filter
-        prob = float(args[1]) if len(args) >= 2 else None
-        custom = {"default_probability":prob} if prob else None
+        custom = None
+        if len(args) > 1:
+            custom = {}
+            if len(args) >= 2: custom["initial_size"] = int(args[1])
+            if len(args) >= 3: custom["default_probability"] = float(args[2])
         cls.MANAGER.create_filter(name, custom)
         return "Done"
 
