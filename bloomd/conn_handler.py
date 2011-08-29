@@ -6,9 +6,7 @@ API implementation which glues our interface to the internal models.
 import logging
 import re
 from twisted.protocols.basic import LineOnlyReceiver
-from twisted.internet import reactor, protocol
-from config import read_config
-from filter_manager import FilterManager
+from twisted.internet import protocol
 
 VALID_NAMES = re.compile("[a-zA-Z0-9._]+")
 
@@ -168,24 +166,4 @@ class ConnHandler(LineOnlyReceiver):
                 self.sendLine("Internal Error")
         else:
             self.sendLine("Client Error: Command not supported")
-
-if __name__ == "__main__":
-    config = read_config()
-    logging.basicConfig(filename=config["log_file"],
-                        level=getattr(logging,config["log_level"]),
-                        format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    stream = logging.StreamHandler()
-    stream.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
-    logging.getLogger('').addHandler(stream)
-
-    APIHandler.MANAGER = FilterManager(config)
-    APIHandler.MANAGER.schedule()
-
-    reactor.listenTCP(config["port"],ConnHandler.getFactory())
-    logging.getLogger('bloombd').info("Started on port %d" % config["port"])
-    reactor.run()
-
-    logging.getLogger('bloombd').info("Closing filters")
-    APIHandler.MANAGER.close()
-    logging.getLogger('bloombd').info("Finished")
 
