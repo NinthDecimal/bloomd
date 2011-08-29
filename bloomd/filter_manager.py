@@ -3,6 +3,7 @@ This module is used to manage the bloom filters in the
 system. It maintains the set of filters available and
 exports a clean API for use in the interfaces.
 """
+import time
 import cPickle
 import logging
 import os
@@ -51,8 +52,11 @@ class FilterManager(object):
     def _flush(self):
         "Called on a scheudle by twisted to flush the filters"
         self.logger.debug("Starting scheduled flush")
+        start = time.time()
         for name,filt in self.filters.items():
             filt.flush()
+        end = time.time()
+        self.logger.debug("Ending scheduled flush. Total time: %f seconds" % (end-start))
 
     def __getitem__(self, key):
         "Returns the filter"
@@ -122,7 +126,7 @@ class Filter(object):
                                                    k=self.config["initial_k"],
                                                    scale_size=self.config["scale_size"],
                                                    prob_reduction=self.config["probability_reduction"])
-        self.logger.info("Bitmap size: %d Capacity: %d Size: %d"
+        self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d"
                          % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter)))
 
     def _next_file(self, recount=True):
@@ -130,23 +134,29 @@ class Filter(object):
         if recount:
             fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
             self.filenum = len(fileparts)
-        return os.path.join(self.path, "data.%03d.mmap" % self.filenum)
+        filename = os.path.join(self.path, "data.%03d.mmap" % self.filenum)
+        self.logger.info("Adding new file '%s'" % filename)
+        return filename
 
     def flush(self):
         "Invoked to force flushing the filter to disk"
         # First, write out our settings
+        start = time.time()
         config_path = os.path.join(self.path, "config")
         raw = cPickle.dumps(self.config)
         open(config_path, "w").write(raw)
 
         # Flush the filter
         self.filter.flush()
+        end = time.time()
+        self.logger.info("Flushing filter. Total time: %f seconds" % (end-start))
 
     def close(self):
         "Flushes and cleans up"
         self.flush()
         self.filter.filenames = None
         self.filter.close()
+        self.logger.info("Closed filter")
 
     def delete(self):
         "Deletes the filter"
@@ -155,6 +165,7 @@ class Filter(object):
 
         # Remove the dir
         os.rmdir(self.path)
+        self.logger.info("Deleted filter")
 
     def __contains__(self, key):
         "Checks if a key is contained"
