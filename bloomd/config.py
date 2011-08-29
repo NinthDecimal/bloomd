@@ -38,10 +38,12 @@ def read_config(filename='bloomd.cfg'):
 
 def valid_data_dir(dir):
     "Checks that the data dir is valid"
-    if not os.path.exists(dir):
-        raise EnvironmentError, "Providied data dir is does not exist!"
-    if not os.path.isdir(dir):
+    if os.path.exists(dir) and not os.path.isdir(dir):
         raise EnvironmentError, "Providied data dir is not a directory!"
+    try:
+        os.mkdir(dir)
+    except:
+        raise EnvironmentError, "Cannot create data directory!"
     try:
         test_file = os.path.join(dir, "PERMTEST")
         fh = open(test_file, "a+")
