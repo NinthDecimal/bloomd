@@ -19,7 +19,10 @@ setup(name='bloomd',
       url="https://github.com/kiip/bloomd/",
       license="MIT License",
       keywords=["bloom", "filter","server","twisted"],
-      packages=['bloomd'],
+      packages=['bloomd','bloomd.bin'],
+      entry_points = {
+        "console_scripts": ["bloomd = bloomd.bin.bloomd:main"],
+      },
       classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
