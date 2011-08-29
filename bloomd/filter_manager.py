@@ -88,6 +88,7 @@ class Filter(object):
         self.name = name
         self.path = full_path
         self.filenum = 0
+        self.dirty = True
         if discover: self._discover()
         else: self._create_filter()
 
@@ -140,6 +141,7 @@ class Filter(object):
 
     def flush(self):
         "Invoked to force flushing the filter to disk"
+        if not self.dirty: return
         # First, write out our settings
         start = time.time()
         config_path = os.path.join(self.path, "config")
@@ -150,6 +152,7 @@ class Filter(object):
         self.filter.flush()
         end = time.time()
         self.logger.info("Flushing filter. Total time: %f seconds" % (end-start))
+        self.dirty = False
 
     def close(self):
         "Flushes and cleans up"
@@ -161,6 +164,7 @@ class Filter(object):
     def delete(self):
         "Deletes the filter"
         # Remove all the files
+        self.close()
         [os.remove(os.path.join(self.path,f)) for f in os.listdir(self.path) if (".mmap" in f or f == "config")]
 
         # Remove the dir
@@ -173,5 +177,6 @@ class Filter(object):
 
     def add(self, key):
         "Adds a key to the filter"
+        self.dirty = True # Mark dirty
         return self.filter.add(key,True)
 
