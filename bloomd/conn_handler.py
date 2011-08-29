@@ -28,7 +28,7 @@ class APIHandler(object):
             return "Exists"
 
         # Create a new filter
-        prob = args[1] if len(args) >= 2 else None
+        prob = float(args[1]) if len(args) >= 2 else None
         custom = {"default_probability":prob} if prob else None
         cls.MANAGER.create_filter(name, custom)
         return "Done"

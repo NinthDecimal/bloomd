@@ -37,7 +37,7 @@ class FilterManager(object):
     def create_filter(self, name, custom=None):
         "Creates a new filter"
         path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
-        os.mkdir(path)
+        if not os.path.exists(path): os.mkdir(path)
         filt = Filter(self.config, name, path, custom=custom)
         self.filters[name] = filt
 
