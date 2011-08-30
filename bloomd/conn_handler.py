@@ -31,9 +31,10 @@ class APIHandler(object):
         # Create a new filter
         custom = None
         if len(args) > 1:
+            args = args[1].split(" ")
             custom = {}
-            if len(args) >= 2: custom["initial_size"] = int(args[1])
-            if len(args) >= 3: custom["default_probability"] = float(args[2])
+            if len(args) >= 1: custom["initial_size"] = int(args[0])
+            if len(args) >= 2: custom["default_probability"] = float(args[1])
         cls.MANAGER.create_filter(name, custom)
         return "Done"
 
