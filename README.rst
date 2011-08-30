@@ -46,14 +46,13 @@ Then run bloomd, pointing it to that file (assuming `/etc` right now)::
 
     bloomd -f /etc/bloomd.conf
 
-
 Protocol
 --------
 
 By default, Bloomd will listen for TCP connections on port 8673.
 It uses a simple ASCII protocol that is very similar to memcached.
 
-A command has the following syntax:
+A command has the following syntax::
 
     cmd [args][\r]\n
 
@@ -70,7 +69,7 @@ There are a total of 8 commands:
 * flush - Flushes all collections or just a specified one
 * conf - Returns the default configuration, or the configuration of a single collection
 
-For the ``create`` command, the format is:
+For the ``create`` command, the format is::
 
     create collection_name [initial_size] [max_prob]
 
@@ -81,7 +80,7 @@ will be created at that size, otherwise the configured value
 will be used. If a maximum false positive probability is provided,
 that will be used, otherwise the configured default is used.
 
-As an example:
+As an example::
 
     create foobar 1048576 0.001
 
@@ -90,7 +89,7 @@ and a 1/1000 probability of generating false positives. Valid responses
 are either "Done", or "Exists".
 
 The ``list`` command takes no arguments, and returns information
-about all the collections. Here is an example response:
+about all the collections. Here is an example response::
 
     START
     foobar 0.001 1048576 583450.315393 0
@@ -104,7 +103,7 @@ scales as more items are added.
 The ``drop`` command is like create, but only takes a collection name.
 It can either return "Done" or "Does not exist".
 
-Check and set look similar, they are either;
+Check and set look similar, they are either::
 
     [check|set] collection_name key
 
@@ -112,7 +111,7 @@ The command must specify a collection and a key to use.
 They will either return "Yes", "No" or "Collection does not exist".
 
 The ``info`` command takes a collection name, and returns
-information about the collection. Here is an example output:
+information about the collection. Here is an example output::
 
     START
     Probability 0.001
@@ -134,9 +133,11 @@ or the collection configuration. Collections may have some custom parameters
 when they are created, and store the configurations with them. They hold
 some configuration which is not directly relevant to a collection.
 
+::
+
     conf [collection_name]
 
-An example output is:
+An example output is::
 
     conf
     START
