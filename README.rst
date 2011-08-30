@@ -22,7 +22,7 @@ Features
 Install
 -------
 
-Download and install from source:
+Download and install from source::
     
     python setup.py install
 
