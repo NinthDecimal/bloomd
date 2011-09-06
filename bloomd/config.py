@@ -4,12 +4,16 @@ the system configuration for BloomD.
 """
 import sys
 import os.path
-from ConfigParser import ConfigParser
+from ConfigParser import ConfigParser, Error
 
 def read_config(filename=None):
     if filename is None: filename='bloomd.cfg'
     cfp = ConfigParser()
-    read = cfp.read([filename])
+    try:
+        read = cfp.read([filename])
+    except Error, e:
+        raise EnvironmentError, ("Failed to parse the config file!", e)
+
     if filename != 'bloomd.cfg' and filename not in read:
         raise EnvironmentError, "Failed to read config file!"
 
@@ -73,14 +77,41 @@ def sane_scale_size(scale):
 
 def sane_probability(prob):
     "Checks the default probability is sane"
-    if prob == 1:
-        raise EnvironmentError, "Probability should not be 1!"
+    if prob >= 1:
+        raise EnvironmentError, "Probability cannot be more than 1!"
     elif prob > 0.01:
         raise Warning, "Probability set very high! Continuing..."
+    elif prob <= 0:
+        raise EnvironmentError, "Probability cannot be less than 0!"
+
+def sane_probability_reduction(prob):
+    "Checks the probability reduction is sane"
+    if prob >= 1:
+        raise EnvironmentError, "Probability reduction cannot be more than 1!"
+    elif prob < 0.1:
+        raise EnvironmentError, "Probability drop off is set too steep!"
+    elif prob < 0.5:
+        raise Warning, "Probability drop off is very steep!"
 
 def valid_log_level(lvl):
     if lvl not in ("DEBUG","INFO","WARN","ERROR","CRITICAL"):
         raise EnvironmentError, "Invalid log level!"
+
+def sane_initial_capacity(cap):
+    "Checks the initial capacity is sane"
+    if cap < 1000:
+        raise EnvironmentError, "Initial capacity cannot be less than 1000!"
+    elif cap > 1e9:
+        raise Warning, "Initial capacity set very hig! Continuing..."
+
+def sane_flush_interval(intv):
+    "Checks that the flush interval is sane"
+    if intv == 0:
+        raise Warning, "Flushing is disabled! Data loss may occur."
+    elif intv < 0:
+        raise EnvironmentError, "Flushing interval must have a non-negative value!"
+    elif intv >= 900:
+        raise Warning, "Flushing set to be infrequent. This increases chances of data loss."
 
 # Define our defaults here
 DEFAULTS = {
@@ -97,9 +128,12 @@ DEFAULTS = {
 
 VALIDATORS = {
     "data_dir": valid_data_dir,
-    "scale_size": sane_scale_size,
-    "default_probability": sane_probability,
     "log_level": valid_log_level,
     "log_file": sane_log_file,
+    "initial_capacity": sane_initial_capacity,
+    "default_probability": sane_probability,
+    "scale_size": sane_scale_size,
+    "probability_reduction": sane_probability_reduction,
+    "flush_interval" : sane_flush_interval,
 }
 
