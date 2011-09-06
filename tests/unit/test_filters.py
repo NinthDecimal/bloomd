@@ -9,7 +9,7 @@ from bloomd import config, filter_manager
 
 def pytest_funcarg__config(request):
     "Returns the default configuration"
-    return config.DEFAULTS
+    return dict(config.DEFAULTS)
 
 def pytest_funcarg__tmpdir(request):
     "Returns a tmpdir and automatically cleans it up"
@@ -119,4 +119,76 @@ class TestFilter(object):
         filter.flush()
         assert len(os.listdir(tmpdir)) == 3 # 2 mmap files + config
 
+class TestFilterManager(object):
+    def test_init(self, config, tmpdir):
+        "Makes a filter manager with stock config, should work."
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        assert len(f) == 0
+
+    def test_create(self, config, tmpdir):
+        "Makes a filter manager with stock config, should work."
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        assert len(f) == 0
+        foo = f.create_filter("foo")
+        assert len(f) == 1
+        assert "foo" in f
+        assert f["foo"] == foo
+
+    def test_delete(self, config, tmpdir):
+        "Makes a filter manager with stock config, should work."
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        assert len(f) == 0
+        f.create_filter("foo")
+        del f["foo"]
+        assert len(f) == 0
+        assert "foo" not in f
+        assert os.listdir(tmpdir) == []
+
+    def test_close(self, config, tmpdir):
+        "Tests close closes things"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        assert len(f) == 0
+        foo = f.create_filter("foo")
+        assert foo.filter is not None
+        f.close()
+        assert foo.filter is None
+
+    def test_flush(self, config, tmpdir):
+        "Tests flush"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        foo = f.create_filter("foo")
+        assert foo.dirty
+        f._flush()
+        assert not foo.dirty
+
+    def test_discover(self, config, tmpdir):
+        "Tests discovery of filters"
+        config["data_dir"] = tmpdir
+
+        # Make a filter
+        filter_dir = os.path.join(tmpdir,filter_manager.FILTER_PREFIX+"test")
+        os.mkdir(filter_dir)
+
+        f = filter_manager.FilterManager(config)
+        assert "test" in f
+        assert f["test"].filter.total_capacity() == config["initial_capacity"]
+
+    def test_recovery(self, config, tmpdir):
+        "Tests recovering existing filters"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        f.create_filter("bar")
+        f.create_filter("baz")
+        f.close()
+
+        f = filter_manager.FilterManager(config)
+        assert "foo" in f
+        assert "bar" in f
+        assert "baz" in f
 

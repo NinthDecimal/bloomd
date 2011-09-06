@@ -41,6 +41,7 @@ class FilterManager(object):
         if not os.path.exists(path): os.mkdir(path)
         filt = Filter(self.config, name, path, custom=custom)
         self.filters[name] = filt
+        return filt
 
     def schedule(self):
         "Schedules the filter manager into the twisted even loop"
@@ -66,6 +67,10 @@ class FilterManager(object):
         "Checks for the existence of a filter"
         return key in self.filters
 
+    def __len__(self):
+        "Returns the number of filters active"
+        return len(self.filters)
+
     def __delitem__(self, key):
         "Deletes the filter"
         if key not in self.filters: return
@@ -78,6 +83,7 @@ class FilterManager(object):
         "Prepares for shutdown, closes all filters"
         for name,filt in self.filters.items():
             filt.close()
+            del self.filters[name]
 
 class Filter(object):
     "Manages a single filter in the system."
@@ -147,7 +153,7 @@ class Filter(object):
         open(config_path, "w").write(raw)
 
         # Flush the filter
-        self.filter.flush()
+        if self.filter is not None: self.filter.flush()
         end = time.time()
         self.logger.info("Flushing filter. Total time: %f seconds" % (end-start))
         self.dirty = False
@@ -155,8 +161,10 @@ class Filter(object):
     def close(self):
         "Flushes and cleans up"
         self.flush()
-        self.filter.filenames = None
-        self.filter.close()
+        if self.filter is not None:
+            self.filter.filenames = None
+            self.filter.close()
+            self.filter = None
         self.logger.info("Closed filter")
 
     def delete(self):
