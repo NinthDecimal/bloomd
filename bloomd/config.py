@@ -88,11 +88,10 @@ DEFAULTS = {
     "data_dir" : "/tmp/bloomd",
     "log_file" : "/tmp/bloomd/bloomd.log",
     "log_level" : "DEBUG",
-    "initial_size" : 16*1024*1024, # 32MB
+    "initial_capacity" : 1000*1000, # 1M
+    "default_probability": 1E-4,
     "scale_size" : 4,
-    "default_probability": 1E-6,
     "probability_reduction" : 0.9,
-    "initial_k" : 4,
     "flush_interval" : 60,
 }
 
