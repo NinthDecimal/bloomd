@@ -85,7 +85,6 @@ class Filter(object):
         self.logger = logging.getLogger("bloomd.Filter."+name)
         self.config = dict(config)
         if custom: self.config.update(custom)
-        self.name = name
         self.path = full_path
         self.filenum = 0
         self.dirty = True
