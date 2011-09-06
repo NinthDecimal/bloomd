@@ -112,7 +112,7 @@ class Filter(object):
         paths = [os.path.join(self.path, part) for part in fileparts]
         sizes = [os.path.getsize(part) for part in paths]
         bitmaps = [bloomlib.Bitmap(size,paths[i]) for i,size in enumerate(sizes)]
-        filters = [bloomlib.BloomFilter(b) for b in bitmaps]
+        filters = [bloomlib.BloomFilter(b,1) for b in bitmaps] # Use 1 k num, it will be re-read
 
         # Create the scalable filter
         self._create_filter(filters)
@@ -122,9 +122,8 @@ class Filter(object):
         "Creates a new instance of the scalable bloom filter"
         self.filter = bloomlib.ScalingBloomFilter(filters=filters,
                                                    filenames=self._next_file,
-                                                   length=self.config["initial_size"],
+                                                   initial_capacity=self.config["initial_capacity"],
                                                    prob=self.config["default_probability"],
-                                                   k=self.config["initial_k"],
                                                    scale_size=self.config["scale_size"],
                                                    prob_reduction=self.config["probability_reduction"])
         self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d"
