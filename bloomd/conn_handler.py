@@ -7,6 +7,7 @@ import logging
 import re
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import protocol
+import config
 
 VALID_NAMES = re.compile("[a-zA-Z0-9._]+")
 
@@ -17,12 +18,12 @@ class APIHandler(object):
 
     @classmethod
     def create(cls, *args):
-        if len(args) < 1: return "Client Error: Must provide collection name"
+        if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
 
         # Sanity check the name
         if not VALID_NAMES.match(name):
-            return "Client Error: Bad collection name"
+            return "Client Error: Bad filter name"
 
         # Creates a new filter
         if name in cls.MANAGER:
@@ -33,8 +34,23 @@ class APIHandler(object):
         if len(args) > 1:
             args = args[1].split(" ")
             custom = {}
-            if len(args) >= 1: custom["initial_capacity"] = int(args[0])
-            if len(args) >= 2: custom["default_probability"] = float(args[1])
+            if len(args) >= 1:
+                try:
+                    capacity = custom["initial_capacity"] = int(args[0])
+                    config.sane_initial_capacity(capacity)
+                except (ValueError, EnvironmentError):
+                    return "Client Error: Bad initial capacity!"
+                except Warning:
+                    pass
+            if len(args) >= 2:
+                try:
+                    prob = custom["default_probability"] = float(args[1])
+                    config.sane_probability(prob)
+                except (ValueError, EnvironmentError):
+                    return "Client Error: Bad false positive probability!"
+                except Warning:
+                    pass
+
         cls.MANAGER.create_filter(name, custom)
         return "Done"
 
@@ -51,18 +67,18 @@ class APIHandler(object):
 
     @classmethod
     def drop(cls, *args):
-        if len(args) < 1: return "Client Error: Must provide collection name"
+        if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
 
         if name not in cls.MANAGER:
-            return "Does not exist"
+            return "Filter does not exist"
         else:
             del cls.MANAGER[name]
             return "Done"
 
     @classmethod
     def check(cls, *args):
-        if len(args) < 2: return "Client Error: Must provide collection name and key"
+        if len(args) < 2: return "Client Error: Must provide filter name and key"
         name = args[0]
         key = args[1]
         try:
@@ -70,11 +86,11 @@ class APIHandler(object):
             res = key in filt
             return "Yes" if res else "No"
         except KeyError:
-            return "Collection does not exist"
+            return "Filter does not exist"
 
     @classmethod
     def set(cls, *args):
-        if len(args) < 2: return "Client Error: Must provide collection name and key"
+        if len(args) < 2: return "Client Error: Must provide filter name and key"
         name = args[0]
         key = args[1]
         try:
@@ -82,13 +98,13 @@ class APIHandler(object):
             res = filt.add(key)
             return "Yes" if res else "No"
         except KeyError:
-            return "Collection does not exist"
+            return "Filter does not exist"
 
     @classmethod
     def info(cls, *args):
-        if len(args) < 1: return "Client Error: Must provide collection name"
+        if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
-        if name not in cls.MANAGER: return "Does not exist"
+        if name not in cls.MANAGER: return "Filter does not exist"
         filt = cls.MANAGER[name]
 
         prob = "Probability "+str(filt.config["default_probability"])
@@ -99,26 +115,26 @@ class APIHandler(object):
 
     @classmethod
     def flush(cls, *args):
-        # Check if we are flushing a specific collection
+        # Check if we are flushing a specific filter
         if len(args) >= 1:
             name = args[0]
-            if name not in cls.MANAGER: return "Does not exist"
+            if name not in cls.MANAGER: return "Filter does not exist"
             cls.MANAGER[name].flush()
             return "Done"
 
-        # Flush all collections
+        # Flush all filters
         for name,filt in cls.MANAGER.filters.items():
             filt.flush()
         return "Done"
 
     @classmethod
     def conf(cls, *args):
-        # Check for global settings, or a collections settings
+        # Check for global settings, or a filters settings
         if len(args) == 0:
             return cls.MANAGER.config
         else:
             name = args[0]
-            if name not in cls.MANAGER: return "Does not exist"
+            if name not in cls.MANAGER: return "Filter does not exist"
             ret = {"name":name}
             ret.update(cls.MANAGER[name].config)
             return ret
