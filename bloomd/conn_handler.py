@@ -33,7 +33,7 @@ class APIHandler(object):
         if len(args) > 1:
             args = args[1].split(" ")
             custom = {}
-            if len(args) >= 1: custom["initial_size"] = int(args[0])
+            if len(args) >= 1: custom["initial_capacity"] = int(args[0])
             if len(args) >= 2: custom["default_probability"] = float(args[1])
         cls.MANAGER.create_filter(name, custom)
         return "Done"
