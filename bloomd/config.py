@@ -116,6 +116,7 @@ def sane_flush_interval(intv):
 # Define our defaults here
 DEFAULTS = {
     "port" : 8673,
+    "udp_port" : 8674,
     "data_dir" : "/tmp/bloomd",
     "log_file" : "/tmp/bloomd/bloomd.log",
     "log_level" : "DEBUG",

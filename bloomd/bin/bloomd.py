@@ -7,7 +7,7 @@ from optparse import OptionParser
 from twisted.internet import reactor
 from ..config import read_config
 from ..filter_manager import FilterManager
-from ..conn_handler import APIHandler, ConnHandler
+from ..conn_handler import APIHandler, ConnHandler, MessageHandler
 
 def setup_logging(config):
     "Configures our logging"
@@ -77,8 +77,10 @@ def main():
     APIHandler.MANAGER.schedule()
 
     # Setup listening for connections
+    reactor.listenUDP(config["udp_port"],MessageHandler())
+    logging.getLogger('bloomd').info("UDP Handler started on port %d" % config["udp_port"])
     reactor.listenTCP(config["port"],ConnHandler.getFactory())
-    logging.getLogger('bloomd').info("Started on port %d" % config["port"])
+    logging.getLogger('bloomd').info("TCP Handler started on port %d" % config["port"])
 
     # Start everything
     start()

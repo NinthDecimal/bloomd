@@ -6,7 +6,7 @@ API implementation which glues our interface to the internal models.
 import logging
 import re
 from twisted.protocols.basic import LineOnlyReceiver
-from twisted.internet import protocol
+from twisted.internet.protocol import DatagramProtocol, ServerFactory
 import config
 
 VALID_NAMES = re.compile("[a-zA-Z0-9._]+")
@@ -147,12 +147,13 @@ class ConnHandler(LineOnlyReceiver):
 
     @classmethod
     def getFactory(self):
-        factory = protocol.ServerFactory()
+        factory = ServerFactory()
         factory.protocol = ConnHandler
         return factory
 
     def lineReceived(self, line):
         # Split the line, at most 2 parts
+        line = line.rstrip("\r\n")
         line_parts = line.strip().split(" ",2)
         cmd = line_parts[0]
         args = line_parts[1:]
@@ -183,4 +184,32 @@ class ConnHandler(LineOnlyReceiver):
                 self.sendLine("Internal Error")
         else:
             self.sendLine("Client Error: Command not supported")
+
+class MessageHandler(DatagramProtocol):
+    """
+    Simple Twisted Protocol handler to parse incoming messages.
+    This allows clients to send UDP packets with commands instead
+    of creating a TCP connection to setup the handshake. The difference
+    is that we never respond to commands, and acts more like a fire and
+    forget method. This is useful for efficient high-volume set commands.
+    """
+    LOGGER = logging.getLogger("bloomd.MessageHandler")
+
+    def datagramReceived(self, datagram, addr):
+        # Handle each line in the datagram
+        lines = datagram.split("\n")
+        for line in lines:
+            # Split the line, at most 2 parts
+            line = line.rstrip("\r\n")
+            line_parts = line.strip().split(" ",2)
+            cmd = line_parts[0]
+            args = line_parts[1:]
+
+            # Check if the APIHandler supports the command
+            if hasattr(APIHandler, cmd):
+                impl = getattr(APIHandler, cmd)
+                try:
+                    impl(*args)
+                except:
+                    self.LOGGER.exception("Internal error running command '%s'" % cmd)
 
