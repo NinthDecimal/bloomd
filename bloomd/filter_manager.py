@@ -97,6 +97,12 @@ class Filter(object):
         if discover: self._discover()
         else: self._create_filter()
 
+        # Add opcounters
+        self.set_hits = 0
+        self.set_misses = 0
+        self.check_hits = 0
+        self.check_misses = 0
+
     def _discover(self):
         "Discovers the configuration for the filter"
         config_path = os.path.join(self.path, "config")
@@ -179,10 +185,27 @@ class Filter(object):
 
     def __contains__(self, key):
         "Checks if a key is contained"
-        return key in self.filter
+        res = key in self.filter
+        if res: self.check_hits += 1
+        else: self.check_misses += 1
+        return res
 
     def add(self, key):
         "Adds a key to the filter"
         self.dirty = True # Mark dirty
-        return self.filter.add(key,True)
+        res = self.filter.add(key,True)
+        if res: self.set_hits += 1
+        else: self.set_misses += 1
+        return res
+
+    def counters(self):
+        "Returns our hit/miss counters"
+        counters = {}
+        counters["set_hits"] = self.set_hits
+        counters["set_misses"] = self.set_misses
+        counters["check_hits"] = self.check_hits
+        counters["check_misses"] = self.check_misses
+        counters["sets"] = self.set_hits + self.set_misses
+        counters["checks"] = self.check_hits + self.check_misses
+        return counters
 
