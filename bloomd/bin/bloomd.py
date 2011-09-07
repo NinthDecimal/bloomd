@@ -14,7 +14,7 @@ def setup_logging(config):
     # Setups basic file logging
     logging.basicConfig(filename=config["log_file"],
                         level=getattr(logging,config["log_level"]),
-                        format="%(asctime)s %(name)s %(levelname)s %(message)s")
+                        format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     # If we are on a tty, attach a stream handler
     if sys.stdout.isatty():
@@ -77,7 +77,7 @@ def main():
     APIHandler.MANAGER.schedule()
 
     # Setup listening for connections
-    reactor.listenUDP(config["udp_port"],MessageHandler())
+    reactor.listenUDP(config["udp_port"],MessageHandler(),maxPacketSize=64*1024)
     logging.getLogger('bloomd').info("UDP Handler started on port %d" % config["udp_port"])
     reactor.listenTCP(config["port"],ConnHandler.getFactory())
     logging.getLogger('bloomd').info("TCP Handler started on port %d" % config["port"])
