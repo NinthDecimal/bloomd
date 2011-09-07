@@ -8,6 +8,7 @@ import re
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet.protocol import DatagramProtocol, ServerFactory
 import config
+import socket
 
 VALID_NAMES = re.compile("[a-zA-Z0-9._]+")
 
@@ -197,6 +198,21 @@ class MessageHandler(DatagramProtocol):
     forget method. This is useful for efficient high-volume set commands.
     """
     LOGGER = logging.getLogger("bloomd.MessageHandler")
+
+    def startProtocol(self):
+        "Hook into the protocol start to set the buffer size"
+        try:
+            # Try to set the buffer to 2MB
+            self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2*1024**2)
+            return
+        except:
+            pass
+        try:
+            # Try to set to 1MB
+            self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024**2)
+        except:
+            # Use the default buffer size
+            pass
 
     def datagramReceived(self, datagram, addr):
         # Handle each line in the datagram
