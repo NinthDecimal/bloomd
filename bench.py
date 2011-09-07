@@ -33,6 +33,7 @@ def connection_udp():
     "Returns a udp socket connection to the server"
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((HOST,UDP_PORT))
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2*1024**2)
     return s
 
 @timeit
@@ -68,8 +69,16 @@ def sets(conn, fh, num=NUM):
 @timeit
 def sets_udp(conn_udp, num=NUM):
     "Runs a series of set operations"
-    for x in xrange(num):
-        conn_udp.sendall("set %s %s\n" % (FILTER, "test%d" % x))
+    messages = ["set %s %s\n" % (FILTER, "test%d" % x) for x in xrange(num)]
+    while len(messages) > 0:
+        # Aggregate some messages and send
+        idx = 0
+        while sum([len(m) for m in messages[:idx+1]]) <= 1450 and idx <= len(messages):
+            idx += 1
+        msg = "".join(messages[:idx])
+        conn_udp.sendall(msg)
+
+        messages = messages[idx:]
     return NUM
 
 @timeit
