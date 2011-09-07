@@ -43,9 +43,9 @@ class TestAPI(object):
         assert handler.create("test", "1000 0.001") == "Done"
         assert "test" in handler.list()
         stats = handler.info("test")
-        assert "Probability 0.001" in stats
-        assert "Capacity 1000" in stats
-        assert "Size 0" in stats
+        assert "probability" in stats and stats["probability"] == "0.001"
+        assert "capacity" in stats and stats["capacity"] == "1000"
+        assert "size" in stats and stats["size"] == "0"
 
     def test_create_custom_invalid(self, handler):
         "Tries to create a filter, custom params that are invalid"
@@ -102,9 +102,9 @@ class TestAPI(object):
         for x in xrange(100):
             assert handler.set("test","test%d" %x) == "Yes"
         info = handler.info("test")
-        assert "Probability 0.001" in info
-        assert "Capacity 1000" in info
-        assert "Size 100" in info
+        assert "probability" in info and info["probability"] == "0.001"
+        assert "capacity" in info and info["capacity"] == "1000"
+        assert "size" in info and info["size"] == "100"
 
     def test_flush_notexist(self, handler):
         "Tests flushing on bad filter"

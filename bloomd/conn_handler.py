@@ -107,11 +107,14 @@ class APIHandler(object):
         if name not in cls.MANAGER: return "Filter does not exist"
         filt = cls.MANAGER[name]
 
-        prob = "Probability "+str(filt.config["default_probability"])
-        storage = "Storage "+str(filt.filter.total_bitmap_size())
-        capacity = "Capacity "+str(filt.filter.total_capacity())
-        size = "Size "+str(len(filt.filter))
-        return [prob, storage, capacity, size]
+        res = {}
+        res["probability"] = str(filt.config["default_probability"])
+        res["storage"] = str(filt.filter.total_bitmap_size())
+        res["capacity"] = str(filt.filter.total_capacity())
+        res["size"] =  str(len(filt.filter))
+        res.update(filt.counters())
+
+        return res
 
     @classmethod
     def flush(cls, *args):
