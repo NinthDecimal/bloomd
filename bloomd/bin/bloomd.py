@@ -19,7 +19,7 @@ def setup_logging(config):
     # If we are on a tty, attach a stream handler
     if sys.stdout.isatty():
         stream = logging.StreamHandler()
-        stream.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
+        stream.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
         logging.getLogger('').addHandler(stream)
 
 def dump_config(config):
