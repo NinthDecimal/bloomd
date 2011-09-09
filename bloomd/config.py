@@ -33,7 +33,8 @@ def read_config(filename=None):
     # Perform custom validation
     for key,validator in VALIDATORS.iteritems():
         try:
-            validator(settings[key])
+            ret = validator(settings[key])
+            if ret: settings[key] = ret # Update the settings if needed
         except Warning, e:
             print e
         except EnvironmentError, e:
@@ -94,8 +95,10 @@ def sane_probability_reduction(prob):
         raise Warning, "Probability drop off is very steep!"
 
 def valid_log_level(lvl):
+    lvl = lvl.upper()
     if lvl not in ("DEBUG","INFO","WARN","ERROR","CRITICAL"):
         raise EnvironmentError, "Invalid log level!"
+    return lvl
 
 def sane_initial_capacity(cap):
     "Checks the initial capacity is sane"
