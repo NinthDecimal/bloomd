@@ -21,6 +21,12 @@ class TestConfig(object):
             config.valid_log_level("foo")
         config.valid_log_level("INFO")
 
+    def test_valid_log_level_lowercase(self):
+        "Tests the log levels lowercased"
+        with pytest.raises(EnvironmentError):
+            config.valid_log_level("foo")
+        config.valid_log_level("info")
+
     def test_log_file(self):
         "Tests our log file is sane"
         with pytest.raises(EnvironmentError):
