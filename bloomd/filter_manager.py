@@ -20,6 +20,7 @@ class FilterManager(object):
         self.config = config
         self.logger = logging.getLogger("bloomd.FilterManager")
         self.filters = self._discover_filters()
+        self._schedule = None
 
     def _discover_filters(self):
         "Called to discover existing filters"
@@ -47,8 +48,8 @@ class FilterManager(object):
         "Schedules the filter manager into the twisted even loop"
         if self.config["flush_interval"] == 0:
             self.logger.warn("Flushing is disabled! Data loss may occur.")
-        schedule = task.LoopingCall(self._flush)
-        schedule.start(self.config["flush_interval"])
+        self._schedule = task.LoopingCall(self._flush)
+        self._schedule.start(self.config["flush_interval"])
 
     def _flush(self):
         "Called on a scheudle by twisted to flush the filters"
@@ -84,6 +85,9 @@ class FilterManager(object):
         for name,filt in self.filters.items():
             filt.close()
             del self.filters[name]
+        if self._schedule:
+            self._schedule.stop()
+            self._schedule = None
 
 class Filter(object):
     "Manages a single filter in the system."
