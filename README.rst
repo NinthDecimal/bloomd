@@ -12,11 +12,14 @@ Features
     - Starts small, grows to fit data
 * Periodically flushes filters to disk for persistence
 * Provides simple ASCII interface
-    - Create / List / Drop collections
-    - Check / Set values in collections
-    - Flush collections
+    - Create / List / Drop filters 
+    - Check / Set values in filters
+    - Flush filters
     - Get configuration
-    - Get collection stats
+    - Get filter stats
+* Provides UDP interface
+    - Request only, no response
+    - Cheap filter 'set' operations without TCP setup and teardown
 * Dead simple to start and administer
 
 Install
@@ -37,6 +40,7 @@ Here is an example configuration file:
     # Settings for bloomd
     [bloomd]
     port = 8673
+    udp_port = 8674
     data_dir = /mnt/bloomd
     log_dir = /var/log/bloomd.log
     log_level = INFO
@@ -60,97 +64,125 @@ We start each line by specifying a command, providing optional arguments,
 and ending the line in a newline (carriage return is optional).
 
 There are a total of 8 commands:
-* create - Create a new collection (a collection is a named bloom filter)
-* list - List all collections
-* drop - Drop a collection
-* check - Check if a key is in a collection
-* set - Set an item in a collection
-* info - Gets info about a collection
-* flush - Flushes all collections or just a specified one
-* conf - Returns the default configuration, or the configuration of a single collection
+* create - Create a new filter (a filter is a named bloom filter)
+* list - List all filters 
+* drop - Drop a filters
+* check - Check if a key is in a filter 
+* set - Set an item in a filter
+* info - Gets info about a filter
+* flush - Flushes all filters or just a specified one
+* conf - Returns the default configuration, or the configuration of a single filter
 
 For the ``create`` command, the format is::
 
-    create collection_name [initial_size] [max_prob]
+    create filter_name [initial_capacity] [max_prob]
 
-Where ``collection_name`` is the name of the collection,
+Where ``filter_name`` is the name of the filter,
 and can contain the characters a-z, A-Z, 0-9, ., _.
-If an initial size is provided (in bytes), the collection
-will be created at that size, otherwise the configured value
-will be used. If a maximum false positive probability is provided,
+If an initial capacity is provided the filter
+will be created to store at least that many items in the initial filter.
+Otherwise the configured default value will be used. 
+If a maximum false positive probability is provided,
 that will be used, otherwise the configured default is used.
 
 As an example::
 
-    create foobar 1048576 0.001
+    create foobar 1000000 0.001
 
-This will create a collection foobar that has a 1MB initial size,
+This will create a filter foobar that has a 1M initial capacity,
 and a 1/1000 probability of generating false positives. Valid responses
 are either "Done", or "Exists".
 
 The ``list`` command takes no arguments, and returns information
-about all the collections. Here is an example response::
+about all the filters. Here is an example response::
 
     START
-    foobar 0.001 1048576 583450.315393 0
+    foobar 0.001 1797211 1000000 0
     END 
 
-This indicates a single collection named foobar, with a probability
-of 0.001 of false positives, a 1MB size, a current capacity of about
-583K items, and 0 current items. The size and capacity automatically
-scales as more items are added.
+This indicates a single filter named foobar, with a probability
+of 0.001 of false positives, a 1.79MB size, a current capacity of
+1M items, and 0 current items. The size and capacity automatically
+scale as more items are added.
 
-The ``drop`` command is like create, but only takes a collection name.
-It can either return "Done" or "Does not exist".
+The ``drop`` command is like create, but only takes a filter name.
+It can either return "Done" or "Filter does not exist".
 
 Check and set look similar, they are either::
 
-    [check|set] collection_name key
+    [check|set] filter_name key
 
-The command must specify a collection and a key to use.
-They will either return "Yes", "No" or "Collection does not exist".
+The command must specify a filter and a key to use.
+They will either return "Yes", "No" or "Filter does not exist".
 
-The ``info`` command takes a collection name, and returns
-information about the collection. Here is an example output::
+The ``info`` command takes a filter name, and returns
+information about the filter. Here is an example output::
 
     START
-    Probability 0.001
-    Storage 1048576
-    Capacity 583450.315393
-    Size 0
+    capacity 1000000
+    checks 0
+    check_hits 0
+    check_misses 0
+    probability 0.001
+    sets 0
+    set_hits 0
+    set_misses 0
+    size 0
+    storage 1797211
     END
 
-The command may also return "Does not exist" if the collection does
+The command may also return "Filter does not exist" if the filter does
 not exist.
 
 The ``flush`` command may be called without any arguments, which
-causes all collections to be flushed. If a collection name is provided
-then that collection will be flushed. This will either return "Done" or
-"Does not exist".
+causes all filters to be flushed. If a filter name is provided
+then that filter will be flushed. This will either return "Done" or
+"Filter does not exist".
 
 The final command ``conf`` is used to query the server configuration
-or the collection configuration. Collections may have some custom parameters
+or the filter configuration. filters may have some custom parameters
 when they are created, and store the configurations with them. They hold
-some configuration which is not directly relevant to a collection.
+some configuration which is not directly relevant to a filter.
 
 ::
 
-    conf [collection_name]
+    conf [filter_name]
 
 An example output is::
 
     conf
     START
     scale_size 4
-    default_probability 1e-06
+    default_probability 1e-04
     data_dir /tmp/bloomd
     probability_reduction 0.9
-    initial_size 16777216
-    initial_k 4
+    initial_capacity 1000000 
     flush_interval 60
     log_level DEBUG
     log_file /tmp/bloomd/bloomd.log
     port 8673
+    udp_port 8674
     END
 
+
+UDP Protocol
+--------
+
+In addition to the TCP protocol, Bloomd also provides a UDP interface
+to avoid the overhead of establishing TCP connections. By default, 
+Bloomd will listen for UDP connections on port 8674. The commands are the
+exact same as the TCP version.
+
+Each UDP packet may contain multiple commands separated by a newline,
+and each packet may be up to 64K in size. It is important to note
+that the Bloomd server will never respond to UDP requests with a result.
+
+This means, the UDP interface is unsuitable for querying filters, but
+is fine for creating and flushing filters, or seting new keys in the
+filters.
+
+Because packet loss may occur and UDP is not a reliable transport mechanism,
+UDP should not be relied on if sets must occur reliably. Under heavy load,
+the packets will be dropped and operations will fail to take place. In these
+situations, consider using the TCP interface.
 
