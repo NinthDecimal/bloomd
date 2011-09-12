@@ -180,8 +180,10 @@ class ConnHandler(LineOnlyReceiver):
 
                 elif isinstance(res, dict):
                     self.sendLine("START")
-                    for k,v in res.iteritems():
-                        self.sendLine(k+" "+str(v))
+                    keys = res.keys()
+                    keys.sort()
+                    for k in keys:
+                        self.sendLine(k+" "+str(res[k]))
                     self.sendLine("END")
             except:
                 self.LOGGER.exception("Internal error running command '%s'" % cmd)
