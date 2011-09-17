@@ -64,6 +64,7 @@ We start each line by specifying a command, providing optional arguments,
 and ending the line in a newline (carriage return is optional).
 
 There are a total of 8 commands:
+
 * create - Create a new filter (a filter is a named bloom filter)
 * list - List all filters 
 * drop - Drop a filters
