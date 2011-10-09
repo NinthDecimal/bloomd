@@ -60,9 +60,9 @@ class APIHandler(object):
         ret = {}
         for key, filt in cls.MANAGER.filters.items():
             prob = filt.config["default_probability"]
-            storage = filt.filter.total_bitmap_size()
-            capacity = filt.filter.total_capacity()
-            size = len(filt.filter)
+            storage = filt.byte_size()
+            capacity = filt.capacity()
+            size = len(filt)
             ret[key] = " ".join([str(s) for s in [prob, storage, capacity, size]])
         return ret
 
@@ -110,9 +110,9 @@ class APIHandler(object):
 
         res = {}
         res["probability"] = str(filt.config["default_probability"])
-        res["storage"] = str(filt.filter.total_bitmap_size())
-        res["capacity"] = str(filt.filter.total_capacity())
-        res["size"] =  str(len(filt.filter))
+        res["storage"] = str(filt.byte_size())
+        res["capacity"] = str(filt.capacity())
+        res["size"] =  str(len(filt))
         res.update(filt.counters())
 
         return res

@@ -26,13 +26,13 @@ class TestFilter(object):
     def test_filter_blank(self, config, tmpdir):
         "Tests creating a blank filter"
         filter = filter_manager.Filter(config, "test", tmpdir)
-        assert len(filter.filter) == 0
+        assert len(filter) == 0
         assert len(filter.filter.filters) == 1
 
     def test_filter_blank_discover(self, config, tmpdir):
         "Tests creating a blank filter"
         filter = filter_manager.Filter(config, "test", tmpdir, discover=True)
-        assert len(filter.filter) == 0
+        assert len(filter) == 0
         assert len(filter.filter.filters) == 1
 
     def test_filter_blank_custom(self, config, tmpdir):
@@ -43,9 +43,9 @@ class TestFilter(object):
                   "probability_reduction":0.5
                  }
         filter = filter_manager.Filter(config, "test", tmpdir, custom=custom)
-        assert len(filter.filter) == 0
+        assert len(filter) == 0
         assert len(filter.filter.filters) == 1
-        assert filter.filter.total_capacity() == 1000
+        assert filter.capacity() == 1000
         assert filter.filter.scale_size == 3
         assert filter.filter.prob_reduction == 0.5
         assert filter.filter.prob == 0.001
@@ -54,7 +54,7 @@ class TestFilter(object):
         "Tests double flushing a filter"
         filter = filter_manager.Filter(config, "test", tmpdir)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         filter.flush()
         filter.flush()
 
@@ -62,7 +62,7 @@ class TestFilter(object):
         "Tests a flush followed by a close"
         filter = filter_manager.Filter(config, "test", tmpdir)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         filter.flush()
         filter.close()
 
@@ -70,12 +70,12 @@ class TestFilter(object):
         "Tests a flush works"
         filter = filter_manager.Filter(config, "test", tmpdir)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         filter.flush()
 
         filter2 = filter_manager.Filter(config, "test2", tmpdir, discover=True)
         [filter2.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter2.filter) == 1000
+        assert len(filter2) == 1000
         assert all([filter.__contains__("Test%d"%x) for x in xrange(1000)])
 
         filter.close()
@@ -85,12 +85,12 @@ class TestFilter(object):
         "Tests closing a filter flushes it"
         filter = filter_manager.Filter(config, "test", tmpdir)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         filter.close()
 
         filter = filter_manager.Filter(config, "test2", tmpdir, discover=True)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         assert all([filter.__contains__("Test%d"%x) for x in xrange(1000)])
         filter.close()
 
@@ -98,7 +98,7 @@ class TestFilter(object):
         "Tests keys cannot be double added"
         filter = filter_manager.Filter(config, "test", tmpdir)
         [filter.add("Test%d" %x) for x in xrange(1000)]
-        assert len(filter.filter) == 1000
+        assert len(filter) == 1000
         assert not any([filter.add("Test%d" %x) for x in xrange(1000)])
         filter.close()
 
@@ -176,7 +176,7 @@ class TestFilterManager(object):
 
         f = filter_manager.FilterManager(config)
         assert "test" in f
-        assert f["test"].filter.total_capacity() == config["initial_capacity"]
+        assert f["test"].capacity() == config["initial_capacity"]
 
     def test_recovery(self, config, tmpdir):
         "Tests recovering existing filters"
