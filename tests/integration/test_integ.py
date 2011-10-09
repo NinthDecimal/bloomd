@@ -150,7 +150,9 @@ class TestInteg(object):
     def test_create_udp(self, servers):
         "Tests creating a collection using UDP"
         server, server_udp = servers
+        time.sleep(0.2)
         server_udp.sendall("create zomg\n")
+        time.sleep(0.2)
         server.sendall("list\n")
         fh = server.makefile()
         assert fh.readline() == "START\n"
