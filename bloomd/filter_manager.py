@@ -202,6 +202,18 @@ class Filter(object):
         else: self.set_misses += 1
         return res
 
+    def __len__(self):
+        "Returns the number of items in the filter"
+        return len(self.filter)
+
+    def capacity(self):
+        "Returns the current capacity of the filter"
+        return self.filter.total_capacity()
+
+    def byte_size(self):
+        "Returns the current byte size of the filter"
+        return self.filter.total_bitmap_size()
+
     def counters(self):
         "Returns our hit/miss counters"
         counters = {}
