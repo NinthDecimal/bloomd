@@ -89,6 +89,16 @@ class TestConfig(object):
             config.sane_flush_interval(1800)
         config.sane_flush_interval(60)
 
+    def test_cold_interval(self):
+        "Tests our cold interval validation"
+        config.sane_cold_interval(60)
+        config.sane_cold_interval(3600)
+        config.sane_cold_interval(86400)
+        with pytest.raises(Warning):
+            config.sane_cold_interval(0)
+        with pytest.raises(EnvironmentError):
+            config.sane_cold_interval(-1)
+
     def test_read_config_default(self):
         "Tests that read_config returns defaults with no args"
         assert config.read_config() == config.DEFAULTS

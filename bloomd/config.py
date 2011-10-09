@@ -116,6 +116,13 @@ def sane_flush_interval(intv):
     elif intv >= 900:
         raise Warning, "Flushing set to be infrequent. This increases chances of data loss."
 
+def sane_cold_interval(intv):
+    "Checks that the cold interval is sane"
+    if intv == 0:
+        raise Warning, "Cold data unmounting is disabled! Memory usage may be high."
+    elif intv < 0:
+        raise EnvironmentError, "Unmounting time cannot be negative"
+
 # Define our defaults here
 DEFAULTS = {
     "port" : 8673,
@@ -128,6 +135,7 @@ DEFAULTS = {
     "scale_size" : 4,
     "probability_reduction" : 0.9,
     "flush_interval" : 60,
+    "cold_interval" : 3600,
 }
 
 VALIDATORS = {
@@ -139,5 +147,6 @@ VALIDATORS = {
     "scale_size": sane_scale_size,
     "probability_reduction": sane_probability_reduction,
     "flush_interval" : sane_flush_interval,
+    "cold_interval": sane_cold_interval,
 }
 
