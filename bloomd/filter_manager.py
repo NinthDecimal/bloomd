@@ -130,7 +130,6 @@ class Filter(object):
         self.path = full_path
         if discover: self._discover()
         else: self._create_filter()
-        self.filenum = 0
         self.dirty = True
         self.counters = Counters()
 
@@ -139,7 +138,6 @@ class Filter(object):
         # Discover the fragments
         fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
         fileparts.sort()
-        self.filenum = len(fileparts)
         self.logger.info("Found %d files: %s" % (len(fileparts), fileparts))
 
         # Get the bitmaps
@@ -163,12 +161,10 @@ class Filter(object):
         self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d"
                          % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter)))
 
-    def _next_file(self, recount=True):
+    def _next_file(self):
         "Returns the next filename to use for the scalable filter"
-        if recount:
-            fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
-            self.filenum = len(fileparts)
-        filename = os.path.join(self.path, "data.%03d.mmap" % self.filenum)
+        fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
+        filename = os.path.join(self.path, "data.%03d.mmap" % len(fileparts))
         self.logger.info("Adding new file '%s'" % filename)
         return filename
 
