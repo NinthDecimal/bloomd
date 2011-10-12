@@ -113,7 +113,7 @@ class APIHandler(object):
         res["storage"] = str(filt.byte_size())
         res["capacity"] = str(filt.capacity())
         res["size"] =  str(len(filt))
-        res.update(filt.counters())
+        res.update(filt.counters.dict())
 
         return res
 

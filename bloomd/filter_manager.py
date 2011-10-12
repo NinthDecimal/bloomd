@@ -29,11 +29,22 @@ class FilterManager(object):
         for c in content:
             if FILTER_PREFIX not in c: continue
             full_path = os.path.join(self.config["data_dir"], c)
-            if os.path.isdir(full_path):
-                filter_name = c.replace(FILTER_PREFIX, "")
-                self.logger.info("Discovered filter: %s" % filter_name)
-                filt = Filter(self.config, filter_name, full_path, discover=True)
-                filters[filter_name] = filt
+            if not os.path.isdir(full_path): continue
+
+            filter_name = c.replace(FILTER_PREFIX, "")
+            self.logger.info("Discovered filter: %s" % filter_name)
+
+            custom_conf = {}
+            config_path = os.path.join(full_path, "config")
+            if os.path.exists(config_path):
+                self.logger.info("Found configuration file")
+                raw = open(config_path).read()
+                custom_conf = cPickle.loads(raw)
+                self.logger.info("Loaded custom config: %s" % custom_conf)
+
+            filt = ProxyFilter(self, self.config, filter_name, full_path, custom=custom_conf)
+            filters[filter_name] = filt
+
         return filters
 
     def create_filter(self, name, custom=None):
@@ -89,6 +100,27 @@ class FilterManager(object):
             self._schedule.stop()
             self._schedule = None
 
+class Counters(object):
+    "Tracks opcounters"
+    def __init__(self):
+        self.set_hits = 0
+        self.set_misses = 0
+        self.check_hits = 0
+        self.check_misses = 0
+
+    @property
+    def sets(self):
+        return self.set_hits + self.set_misses
+
+    @property
+    def checks(self):
+        return self.check_hits + self.check_misses
+
+    def dict(self):
+        return {"set_hits":self.set_hits,"set_misses":self.set_misses,
+                "check_hits":self.check_hits,"check_misses":self.check_misses,
+                "checks":self.checks,"sets":self.sets}
+
 class Filter(object):
     "Manages a single filter in the system."
     def __init__(self, config, name, full_path, custom=None, discover=False):
@@ -96,27 +128,14 @@ class Filter(object):
         self.config = dict(config)
         if custom: self.config.update(custom)
         self.path = full_path
-        self.filenum = 0
-        self.dirty = True
         if discover: self._discover()
         else: self._create_filter()
-
-        # Add opcounters
-        self.set_hits = 0
-        self.set_misses = 0
-        self.check_hits = 0
-        self.check_misses = 0
+        self.filenum = 0
+        self.dirty = True
+        self.counters = Counters()
 
     def _discover(self):
-        "Discovers the configuration for the filter"
-        config_path = os.path.join(self.path, "config")
-        if os.path.exists(config_path):
-            self.logger.info("Found configuration file")
-            raw = open(config_path).read()
-            new_conf = cPickle.loads(raw)
-            self.logger.info("Loaded config: %s" % new_conf)
-            self.config.update(new_conf)
-
+        "Discovers the existing filter"
         # Discover the fragments
         fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
         fileparts.sort()
@@ -156,6 +175,11 @@ class Filter(object):
     def flush(self):
         "Invoked to force flushing the filter to disk"
         if not self.dirty: return
+        # Save some information about the filters
+        self.config["size"] = len(self)
+        self.config["capacity"] = self.capacity()
+        self.config["byte_size"] = self.byte_size()
+
         # First, write out our settings
         start = time.time()
         config_path = os.path.join(self.path, "config")
@@ -190,16 +214,16 @@ class Filter(object):
     def __contains__(self, key):
         "Checks if a key is contained"
         res = key in self.filter
-        if res: self.check_hits += 1
-        else: self.check_misses += 1
+        if res: self.counters.check_hits += 1
+        else: self.counters.check_misses += 1
         return res
 
     def add(self, key):
         "Adds a key to the filter"
         self.dirty = True # Mark dirty
         res = self.filter.add(key,True)
-        if res: self.set_hits += 1
-        else: self.set_misses += 1
+        if res: self.counters.set_hits += 1
+        else: self.counters.set_misses += 1
         return res
 
     def __len__(self):
