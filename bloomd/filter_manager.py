@@ -234,14 +234,47 @@ class Filter(object):
         "Returns the current byte size of the filter"
         return self.filter.total_bitmap_size()
 
-    def counters(self):
-        "Returns our hit/miss counters"
-        counters = {}
-        counters["set_hits"] = self.set_hits
-        counters["set_misses"] = self.set_misses
-        counters["check_hits"] = self.check_hits
-        counters["check_misses"] = self.check_misses
-        counters["sets"] = self.set_hits + self.set_misses
-        counters["checks"] = self.check_hits + self.check_misses
-        return counters
+
+class ProxyFilter(object):
+    "Manages a single filter in the system."
+    def __init__(self, manager, config, name, full_path, custom=None):
+        self.manager = manager
+        self.name = name
+        self.logger = logging.getLogger("bloomd.ProxyFilter."+name)
+        self.config = dict(config)
+        self.config.update({"size":0,"capacity":self.config["initial_capacity"],"byte_size":0})
+        if custom: self.config.update(custom)
+        self.path = full_path
+        self.counters = Counters()
+
+    def __getattribute__(self, attr):
+        "High-jack some methods to simplify things"
+        if attr in ("flush","close"):
+            return lambda : None
+        elif attr in ("capacity","byte_size"):
+            return lambda : self.config[attr]
+        else:
+            return object.__getattribute__(self, attr)
+
+    def _fault_attr(self, attr, *args, **kwargs):
+        self.logger.info("Faulting in the real filter!")
+        filter = Filter(self.config, self.name, self.path, discover=True)
+        filter.counters = self.counters # Copy our counters over
+        self.manager.filters[self.name] = filter # Replace the proxy with the real deal
+        return getattr(filter, attr)(*args, **kwargs)
+
+    def __len__(self):
+        return self.config["size"]
+
+    def __contains__(self, *args, **kwargs):
+        return self._fault_attr("__contains__", *args, **kwargs)
+
+    def add(self, *args, **kwargs):
+        return self._fault_attr("add", *args, **kwargs)
+
+    def delete(self):
+        "Deletes the filter"
+        [os.remove(os.path.join(self.path,f)) for f in os.listdir(self.path) if (".mmap" in f or f == "config")]
+        os.rmdir(self.path)
+        self.logger.info("Deleted filter")
 
