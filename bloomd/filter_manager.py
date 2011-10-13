@@ -100,7 +100,7 @@ class FilterManager(object):
             # Replace with a proxy filter
             proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
             proxy_filt.counters = filt.counters
-            proxy_filt.counters.page_out += 1
+            proxy_filt.counters.page_outs += 1
             self.filters[name] = proxy_filt
 
         # Clear the hot filters
@@ -154,8 +154,8 @@ class Counters(object):
         self.set_misses = 0
         self.check_hits = 0
         self.check_misses = 0
-        self.page_out = 0
-        self.page_in = 0
+        self.page_outs = 0
+        self.page_ins = 0
 
     @property
     def sets(self):
@@ -168,7 +168,8 @@ class Counters(object):
     def dict(self):
         return {"set_hits":self.set_hits,"set_misses":self.set_misses,
                 "check_hits":self.check_hits,"check_misses":self.check_misses,
-                "checks":self.checks,"sets":self.sets}
+                "checks":self.checks,"sets":self.sets,"page_outs":self.page_outs,
+                "page_ins":self.page_ins}
 
 class Filter(object):
     "Manages a single filter in the system."
@@ -313,7 +314,7 @@ class ProxyFilter(object):
         self.logger.info("Faulting in the real filter!")
         filter = Filter(self.config, self.name, self.path, discover=True)
         filter.counters = self.counters # Copy our counters over
-        filter.counters.page_in += 1 # Increment the page in count
+        filter.counters.page_ins += 1 # Increment the page in count
         self.manager.filters[self.name] = filter # Replace the proxy with the real deal
         return getattr(filter, attr)(*args, **kwargs)
 
