@@ -53,7 +53,7 @@ class FilterManager(object):
         "Creates a new filter"
         path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
         if not os.path.exists(path): os.mkdir(path)
-        filt = Filter(self.config, name, path, custom=custom)
+        filt = Filter(self.config, name, path, custom=custom, discover=True)
         self.filters[name] = filt
         self.hot_filters.add(name)
         return filt
@@ -307,7 +307,7 @@ class ProxyFilter(object):
     def __getattribute__(self, attr):
         "High-jack some methods to simplify things"
         if attr in ("flush","close"):
-            return lambda : None
+            return lambda : self.logger.info("Called '%s'" % attr)
         elif attr in ("capacity","byte_size"):
             return lambda : self.config[attr]
         else:
