@@ -22,6 +22,13 @@ def pytest_funcarg__tmpdir(request):
     request.addfinalizer(cleanup)
     return tmpdir
 
+def pytest_funcarg__manager(request):
+    "Returns a fake FilterManager object"
+    class Manager(object):
+        def __init__(self):
+            self.filters = {}
+    return Manager()
+
 class TestFilter(object):
     def test_filter_blank(self, config, tmpdir):
         "Tests creating a blank filter"
@@ -118,6 +125,59 @@ class TestFilter(object):
         assert len(filter.filter.filters) == 2
         filter.flush()
         assert len(os.listdir(tmpdir)) == 3 # 2 mmap files + config
+
+class TestProxyFilter(object):
+    def test_filter_blank(self, config, tmpdir, manager):
+        "Tests creating a blank proxy"
+        filter = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        assert len(filter) == 0
+        assert filter.capacity() == config["initial_capacity"]
+
+    def test_filter_close(self, config, tmpdir, manager):
+        "Tests a close"
+        filter = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        filter.close()
+
+    def test_filter_flush(self, config, tmpdir, manager):
+        "Tests a flush does not crash"
+        filter = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        filter.flush()
+
+    def test_filter_bytes_match(self, config, tmpdir, manager):
+        "Tests that the byte sizes match between a proxy and real filter"
+        filter = filter_manager.Filter(config, "test", tmpdir)
+        filter.flush()
+        proxy = filter_manager.ProxyFilter(manager, config, "test", tmpdir,
+                                           custom=filter_manager.load_custom_settings(tmpdir))
+        assert proxy.byte_size() == filter.byte_size()
+
+    def test_filter_delete(self, config, tmpdir, manager):
+        "Tests deleting a filter"
+        filter = filter_manager.Filter(config, "test", tmpdir)
+        [filter.add("Test%d" %x) for x in xrange(1000)]
+        filter.close()
+        proxy = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        proxy.delete()
+        assert not os.path.exists(tmpdir)
+
+    def test_filter_add_faults(self, config, tmpdir, manager):
+        "Tests that calling add faults, but succeeds"
+        proxy = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        manager.filters["test"] = proxy
+        [manager.filters["test"].add("Test%d" % x) for x in xrange(1000)]
+
+        assert isinstance(manager.filters["test"], filter_manager.Filter)
+        assert all([("Test%d" % x) in manager.filters["test"] for x in xrange(1000)])
+
+    def test_filter_contain_faults(self, config, tmpdir, manager):
+        "Tests that calling contain faults, but succeeds"
+        proxy = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        manager.filters["test"] = proxy
+        contained = [("Test%d" % x) in manager.filters["test"] for x in xrange(1000)]
+
+        assert isinstance(manager.filters["test"], filter_manager.Filter)
+        assert not any(contained)
+
 
 class TestFilterManager(object):
     def test_init(self, config, tmpdir):
