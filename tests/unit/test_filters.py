@@ -297,3 +297,21 @@ class TestFilterManager(object):
         assert "foo" in f
         assert "bar" in f
         assert "baz" in f
+
+    def test_unmap_create(self, config, tmpdir):
+        "Tests creating a filter after unmapping it"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        f["foo"].add("1")
+        f["foo"].add("2")
+        f["foo"].add("3")
+        f.unmap("foo")
+
+        f.create_filter("foo")
+        assert len(f["foo"]) == 3
+        assert "1" in f["foo"]
+        assert "2" in f["foo"]
+        assert "3" in f["foo"]
+        f.close()
+
