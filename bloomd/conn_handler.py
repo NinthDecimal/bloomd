@@ -78,6 +78,17 @@ class APIHandler(object):
             return "Done"
 
     @classmethod
+    def close(cls, *args):
+        if len(args) < 1: return "Client Error: Must provide filter name"
+        name = args[0]
+
+        if name not in cls.MANAGER:
+            return "Filter does not exist"
+        else:
+            cls.MANAGER.unmap(name)
+            return "Done"
+
+    @classmethod
     def check(cls, *args):
         if len(args) < 2: return "Client Error: Must provide filter name and key"
         name = args[0]
@@ -203,18 +214,13 @@ class MessageHandler(DatagramProtocol):
 
     def startProtocol(self):
         "Hook into the protocol start to set the buffer size"
-        try:
-            # Try to set the buffer to 2MB
-            self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2*1024**2)
-            return
-        except:
-            pass
-        try:
-            # Try to set to 1MB
-            self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024**2)
-        except:
-            # Use the default buffer size
-            pass
+        for buff_size in (2*1024**2,1024**2,512*1024):
+            try:
+                # Try to set the buffer to 2MB
+                self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2*1024**2)
+                return
+            except:
+                pass
 
     def datagramReceived(self, datagram, addr):
         # Handle each line in the datagram
