@@ -14,13 +14,22 @@ from twisted.internet import task
 # Prefix we add to bloomd directories
 FILTER_PREFIX = "bloomd."
 
+def load_custom_settings(full_path):
+    "Loads a custom configuration from a path, or None"
+    config_path = os.path.join(full_path, "config")
+    if not os.path.exists(config_path): return None
+    raw = open(config_path).read()
+    return cPickle.loads(raw)
+
 class FilterManager(object):
     "Manages all the currently active filters in the system."
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger("bloomd.FilterManager")
         self.filters = self._discover_filters()
-        self._schedule = None
+        self.hot_filters = set([]) # Track the filters that are 'hot'
+        self._schedule_flush = None
+        self._schedule_cold = None
 
     def _discover_filters(self):
         "Called to discover existing filters"
@@ -34,15 +43,8 @@ class FilterManager(object):
             filter_name = c.replace(FILTER_PREFIX, "")
             self.logger.info("Discovered filter: %s" % filter_name)
 
-            custom_conf = {}
-            config_path = os.path.join(full_path, "config")
-            if os.path.exists(config_path):
-                self.logger.info("Found configuration file")
-                raw = open(config_path).read()
-                custom_conf = cPickle.loads(raw)
-                self.logger.info("Loaded custom config: %s" % custom_conf)
-
-            filt = ProxyFilter(self, self.config, filter_name, full_path, custom=custom_conf)
+            filt = ProxyFilter(self, self.config, filter_name, full_path,
+                              custom=load_custom_settings(full_path))
             filters[filter_name] = filt
 
         return filters
@@ -53,14 +55,22 @@ class FilterManager(object):
         if not os.path.exists(path): os.mkdir(path)
         filt = Filter(self.config, name, path, custom=custom)
         self.filters[name] = filt
+        self.hot_filters.add(name)
         return filt
 
     def schedule(self):
         "Schedules the filter manager into the twisted even loop"
         if self.config["flush_interval"] == 0:
             self.logger.warn("Flushing is disabled! Data loss may occur.")
-        self._schedule = task.LoopingCall(self._flush)
-        self._schedule.start(self.config["flush_interval"])
+        else:
+            self._schedule_flush = task.LoopingCall(self._flush)
+            self._schedule_flush.start(self.config["flush_interval"],now=False)
+
+        if self.config["cold_interval"] == 0:
+            self.logger.warn("Cold filter unmapping is disabled!")
+        else:
+            self._schedule_cold = task.LoopingCall(self._unmap_cold)
+            self._schedule_cold.start(self.config["cold_interval"],now=False)
 
     def _flush(self):
         "Called on a scheudle by twisted to flush the filters"
@@ -71,8 +81,37 @@ class FilterManager(object):
         end = time.time()
         self.logger.debug("Ending scheduled flush. Total time: %f seconds" % (end-start))
 
+    def _unmap_cold(self):
+        "Called on a schedule by twisted to unmap cold filters"
+        self.logger.debug("Starting unmap cold filters")
+        start = time.time()
+
+        all_filters = set(self.filters.keys())
+        cold_filters = all_filters - self.hot_filters
+        for name in cold_filters:
+            # Ignore any ProxyFilters
+            filt = self.filters[name]
+            if isinstance(filt, ProxyFilter): continue
+
+            # Close the actual filter
+            self.logger.info("Unmapping filter '%s'" % name)
+            filt.close()
+
+            # Replace with a proxy filter
+            proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
+            proxy_filt.counters = filt.counters
+            proxy_filt.counters.page_out += 1
+            self.filters[name] = proxy_filt
+
+        # Clear the hot filters
+        self.hot_filters.clear()
+
+        end = time.time()
+        self.logger.debug("Ending scheduled cold unmap. Total time: %f seconds" % (end-start))
+
     def __getitem__(self, key):
         "Returns the filter"
+        self.hot_filters.add(key)
         return self.filters[key]
 
     def __contains__(self, key):
@@ -90,15 +129,23 @@ class FilterManager(object):
         filt.close()
         filt.delete()
         del self.filters[key]
+        try:
+            self.hot_filters.remove(key)
+        except KeyError:
+            pass
 
     def close(self):
         "Prepares for shutdown, closes all filters"
         for name,filt in self.filters.items():
             filt.close()
             del self.filters[name]
-        if self._schedule:
-            self._schedule.stop()
-            self._schedule = None
+        if self._schedule_flush:
+            self._schedule_flush.stop()
+            self._schedule_flush = None
+        if self._schedule_cold:
+            self._schedule_cold.stop()
+            self._schedule_cold = None
+
 
 class Counters(object):
     "Tracks opcounters"
@@ -107,6 +154,8 @@ class Counters(object):
         self.set_misses = 0
         self.check_hits = 0
         self.check_misses = 0
+        self.page_out = 0
+        self.page_in = 0
 
     @property
     def sets(self):
@@ -126,7 +175,9 @@ class Filter(object):
     def __init__(self, config, name, full_path, custom=None, discover=False):
         self.logger = logging.getLogger("bloomd.Filter."+name)
         self.config = dict(config)
-        if custom: self.config.update(custom)
+        if custom:
+            self.config.update(custom)
+            self.logger.info("Loaded custom configuration! Config: %s" % self.config)
         self.path = full_path
         if discover: self._discover()
         else: self._create_filter()
@@ -243,7 +294,9 @@ class ProxyFilter(object):
         self.logger = logging.getLogger("bloomd.ProxyFilter."+name)
         self.config = dict(config)
         self.config.update({"size":0,"capacity":self.config["initial_capacity"],"byte_size":0})
-        if custom: self.config.update(custom)
+        if custom:
+            self.config.update(custom)
+            self.logger.info("Loaded custom configuration! Config: %s" % self.config)
         self.path = full_path
         self.counters = Counters()
 
@@ -260,6 +313,7 @@ class ProxyFilter(object):
         self.logger.info("Faulting in the real filter!")
         filter = Filter(self.config, self.name, self.path, discover=True)
         filter.counters = self.counters # Copy our counters over
+        filter.counters.page_in += 1 # Increment the page in count
         self.manager.filters[self.name] = filter # Replace the proxy with the real deal
         return getattr(filter, attr)(*args, **kwargs)
 
