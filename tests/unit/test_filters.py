@@ -226,7 +226,7 @@ class TestFilterManager(object):
         f._flush()
         assert not foo.dirty
 
-    def test_unmap(self, config, tmpdir):
+    def test_unmap_cold(self, config, tmpdir):
         "Tests unmap"
         config["data_dir"] = tmpdir
         f = filter_manager.FilterManager(config)
@@ -242,6 +242,18 @@ class TestFilterManager(object):
         f._unmap_cold()
         assert "foo" not in f.hot_filters
         assert isinstance(f.filters["foo"], filter_manager.ProxyFilter)
+
+    def test_unmap(self, config, tmpdir):
+        "Tests unmapping existing filters"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        f.create_filter("bar")
+        f.create_filter("baz")
+        f.unmap("foo")
+        f.unmap("bar")
+        f.unmap("baz")
+        assert len(f.filters) == 0
 
     def test_discover(self, config, tmpdir):
         "Tests discovery of filters"
@@ -269,3 +281,19 @@ class TestFilterManager(object):
         assert "bar" in f
         assert "baz" in f
 
+    def test_unmap_recovery(self, config, tmpdir):
+        "Tests recovering existing filters are unmapped"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        f.create_filter("bar")
+        f.create_filter("baz")
+        f.unmap("foo")
+        f.unmap("bar")
+        f.unmap("baz")
+        f.close()
+
+        f = filter_manager.FilterManager(config)
+        assert "foo" in f
+        assert "bar" in f
+        assert "baz" in f

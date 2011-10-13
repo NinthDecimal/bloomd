@@ -62,6 +62,17 @@ class TestAPI(object):
         "Tries to delete a filter that does not exist"
         assert handler.drop("test") == "Filter does not exist"
 
+    def test_close(self, handler):
+        "Tries to close a filter"
+        assert handler.create("test") == "Done"
+        assert "test" in handler.list()
+        assert handler.close("test") == "Done"
+        assert "test" not in handler.list()
+
+    def test_close_notexist(self, handler):
+        "Tries to close a filter that does not exist"
+        assert handler.close("test") == "Filter does not exist"
+
     def test_check_nofilter(self, handler):
         "Checks for a key in a bad filter"
         assert handler.check("test","foo") == "Filter does not exist"

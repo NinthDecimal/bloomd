@@ -103,6 +103,22 @@ class TestInteg(object):
         assert fh.readline() == "START\n"
         assert fh.readline() == "END\n"
 
+    def test_close(self, servers):
+        "Tests closing a filter"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("list\n")
+        assert fh.readline() == "START\n"
+        assert "foobar" in fh.readline()
+        assert fh.readline() == "END\n"
+        server.sendall("close foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("list\n")
+        assert fh.readline() == "START\n"
+        assert fh.readline() == "END\n"
+
     def test_set(self, servers):
         "Tests setting a value"
         server, _ = servers
