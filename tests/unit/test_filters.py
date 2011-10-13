@@ -226,6 +226,23 @@ class TestFilterManager(object):
         f._flush()
         assert not foo.dirty
 
+    def test_unmap(self, config, tmpdir):
+        "Tests unmap"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        assert isinstance(f.filters["foo"], filter_manager.Filter)
+        assert "foo" in f.hot_filters
+
+        # Marks it all as cold now
+        f._unmap_cold()
+        assert "foo" not in f.hot_filters
+
+        # Should turn into a proxy now
+        f._unmap_cold()
+        assert "foo" not in f.hot_filters
+        assert isinstance(f.filters["foo"], filter_manager.ProxyFilter)
+
     def test_discover(self, config, tmpdir):
         "Tests discovery of filters"
         config["data_dir"] = tmpdir
