@@ -129,10 +129,13 @@ class FilterManager(object):
         filt.close()
         filt.delete()
         del self.filters[key]
-        try:
-            self.hot_filters.remove(key)
-        except KeyError:
-            pass
+
+    def unmap(self, key):
+        "Closes and unmaps a filter"
+        if key not in self.filters: return
+        filt = self.filters[key]
+        filt.close()
+        del self.filters[key]
 
     def close(self):
         "Prepares for shutdown, closes all filters"
