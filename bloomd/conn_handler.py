@@ -216,8 +216,7 @@ class MessageHandler(DatagramProtocol):
         "Hook into the protocol start to set the buffer size"
         for buff_size in (2*1024**2,1024**2,512*1024):
             try:
-                # Try to set the buffer to 2MB
-                self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2*1024**2)
+                self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buff_size)
                 return
             except:
                 pass
