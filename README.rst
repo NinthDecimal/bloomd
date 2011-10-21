@@ -1,7 +1,7 @@
-BloomD
+Bloomd
 =========
 
-BloomD exposes a simple ASCII protocol that is memcached like
+Bloomd exposes a simple ASCII protocol that is memcached like
 for managing collections of bloom filters. Clients can create
 bloom filters, which support check and set operations.
 
@@ -11,6 +11,7 @@ Features
 * Supports multiple scalable bloom filters
     - Starts small, grows to fit data
 * Periodically flushes filters to disk for persistence
+* Automatically faults cold filters out of memory
 * Provides simple ASCII interface
     - Create / List / Drop filters 
     - Check / Set values in filters
@@ -63,11 +64,12 @@ A command has the following syntax::
 We start each line by specifying a command, providing optional arguments,
 and ending the line in a newline (carriage return is optional).
 
-There are a total of 8 commands:
+There are a total of 9 commands:
 
 * create - Create a new filter (a filter is a named bloom filter)
 * list - List all filters 
-* drop - Drop a filters
+* drop - Drop a filters (Deletes from disk)
+* close - Closes a filter (Unmaps, leaves on disk)
 * check - Check if a key is in a filter 
 * set - Set an item in a filter
 * info - Gets info about a filter
@@ -106,7 +108,7 @@ of 0.001 of false positives, a 1.79MB size, a current capacity of
 1M items, and 0 current items. The size and capacity automatically
 scale as more items are added.
 
-The ``drop`` command is like create, but only takes a filter name.
+The ``drop`` and ``close`` commands are like create, but only takes a filter name.
 It can either return "Done" or "Filter does not exist".
 
 Check and set look similar, they are either::
@@ -124,6 +126,8 @@ information about the filter. Here is an example output::
     checks 0
     check_hits 0
     check_misses 0
+    page_ins 0
+    page_outs 0
     probability 0.001
     sets 0
     set_hits 0
