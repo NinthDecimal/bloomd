@@ -214,7 +214,7 @@ class MessageHandler(DatagramProtocol):
 
     def startProtocol(self):
         "Hook into the protocol start to set the buffer size"
-        for buff_size in (2*1024**2,1024**2,512*1024):
+        for buff_size in (4*1024**2,2*1024**2,1024**2,512*1024):
             try:
                 self.transport.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, buff_size)
                 return
