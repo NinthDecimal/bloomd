@@ -307,7 +307,7 @@ class ProxyFilter(object):
     def __getattribute__(self, attr):
         "High-jack some methods to simplify things"
         if attr in ("flush","close"):
-            return lambda : self.logger.info("Called '%s'" % attr)
+            return lambda : self.logger.debug("Called '%s'" % attr)
         elif attr in ("capacity","byte_size"):
             return lambda : self.config[attr]
         else:
