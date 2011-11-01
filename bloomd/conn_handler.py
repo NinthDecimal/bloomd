@@ -117,7 +117,8 @@ class APIHandler(object):
         if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
         if name not in cls.MANAGER: return "Filter does not exist"
-        filt = cls.MANAGER[name]
+        # Use the filters directly to avoid adding to the hot list
+        filt = cls.MANAGER.filters[name]
 
         res = {}
         res["probability"] = str(filt.config["default_probability"])
@@ -151,7 +152,7 @@ class APIHandler(object):
             name = args[0]
             if name not in cls.MANAGER: return "Filter does not exist"
             ret = {"name":name}
-            ret.update(cls.MANAGER[name].config)
+            ret.update(cls.MANAGER.filters[name].config)
             return ret
 
 class ConnHandler(LineOnlyReceiver):
