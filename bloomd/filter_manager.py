@@ -187,6 +187,7 @@ class Filter(object):
         else: self._create_filter()
         self.dirty = True
         self.counters = Counters()
+        self.counters.page_ins += 1
 
     def _discover(self):
         "Discovers the existing filter"
@@ -297,7 +298,9 @@ class ProxyFilter(object):
         self.name = name
         self.logger = logging.getLogger("bloomd.ProxyFilter."+name)
         self.config = dict(config)
-        self.config.update({"size":0,"capacity":self.config["initial_capacity"],"byte_size":0})
+        self.config.setdefault("size",0)
+        self.config.setdefault("capacity",self.config["initial_capacity"])
+        self.config.setdefault("byte_size",0)
         if custom:
             self.config.update(custom)
             self.logger.info("Loaded custom configuration! Config: %s" % self.config)
@@ -307,7 +310,7 @@ class ProxyFilter(object):
     def __getattribute__(self, attr):
         "High-jack some methods to simplify things"
         if attr in ("flush","close"):
-            return lambda : self.logger.debug("Called '%s'" % attr)
+            return lambda : None
         elif attr in ("capacity","byte_size"):
             return lambda : self.config[attr]
         else:
