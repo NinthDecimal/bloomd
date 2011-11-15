@@ -77,7 +77,7 @@ class FilterManager(object):
         self.logger.debug("Starting scheduled flush")
         start = time.time()
         for name,filt in self.filters.items():
-            filt.flush()
+            filt.flush(self.config["async_flush"])
         end = time.time()
         self.logger.debug("Ending scheduled flush. Total time: %f seconds" % (end-start))
 
@@ -224,7 +224,7 @@ class Filter(object):
         self.logger.info("Adding new file '%s'" % filename)
         return filename
 
-    def flush(self):
+    def flush(self, async=False):
         "Invoked to force flushing the filter to disk"
         if not self.dirty: return
         # Save some information about the filters
@@ -239,7 +239,7 @@ class Filter(object):
         open(config_path, "w").write(raw)
 
         # Flush the filter
-        if self.filter is not None: self.filter.flush()
+        if self.filter is not None: self.filter.flush(async)
         end = time.time()
         self.logger.info("Flushing filter. Total time: %f seconds" % (end-start))
         self.dirty = False
@@ -310,7 +310,7 @@ class ProxyFilter(object):
     def __getattribute__(self, attr):
         "High-jack some methods to simplify things"
         if attr in ("flush","close"):
-            return lambda : None
+            return lambda *args,**kwargs : None
         elif attr in ("capacity","byte_size"):
             return lambda : self.config[attr]
         else:
