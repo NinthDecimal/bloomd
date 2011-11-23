@@ -136,7 +136,6 @@ DEFAULTS = {
     "probability_reduction" : 0.9,
     "flush_interval" : 60,
     "cold_interval" : 3600,
-    "async_flush" : True,
 }
 
 VALIDATORS = {

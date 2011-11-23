@@ -77,7 +77,7 @@ class FilterManager(object):
         self.logger.debug("Starting scheduled flush")
         start = time.time()
         for name,filt in self.filters.items():
-            filt.flush(self.config["async_flush"])
+            filt.flush()
         end = time.time()
         self.logger.debug("Ending scheduled flush. Total time: %f seconds" % (end-start))
 
@@ -224,7 +224,7 @@ class Filter(object):
         self.logger.info("Adding new file '%s'" % filename)
         return filename
 
-    def flush(self, async=False):
+    def flush(self):
         "Invoked to force flushing the filter to disk"
         if not self.dirty: return
         # Save some information about the filters
@@ -239,7 +239,7 @@ class Filter(object):
         open(config_path, "w").write(raw)
 
         # Flush the filter
-        if self.filter is not None: self.filter.flush(async)
+        if self.filter is not None: self.filter.flush()
         end = time.time()
         self.logger.info("Flushing filter. Total time: %f seconds" % (end-start))
         self.dirty = False
