@@ -3,17 +3,24 @@ This module is used to manage the bloom filters in the
 system. It maintains the set of filters available and
 exports a clean API for use in the interfaces.
 """
-import time
 import cPickle
 import logging
 import os
 import os.path
-from twisted.internet import task
+import threading
+
+from twisted.internet import task, reactor
 
 from filters import Filter, ProxyFilter
 
 # Prefix we add to bloomd directories
 FILTER_PREFIX = "bloomd."
+
+# Possible statuses
+STATUS_READY = "ready"
+STATUS_BUSY = "busy"
+STATUS_CLOSING = "closing"
+STATUS_FLUSHING = "flushing"
 
 def load_custom_settings(full_path):
     "Loads a custom configuration from a path, or None"
@@ -27,14 +34,25 @@ class FilterManager(object):
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger("bloomd.FilterManager")
-        self.filters = self._discover_filters()
         self.hot_filters = set([]) # Track the filters that are 'hot'
         self._schedule_flush = None
         self._schedule_cold = None
 
+        # We use the filter status dictionary to map
+        # the names of the filter onto a tuple that has
+        # the status of the filter as the 0th index, and a Condition
+        # object as the second. The status is one of "ready","busy",
+        # "flushing", and "closing". This is used to protect
+        # the filters, and provide finer grained locking of resources.
+        # We use a special None key to control the entire dictionary.
+        self.filter_status = {None:[STATUS_READY,threading.Condition()]}
+
+        # Map of filter name to filter objects
+        self.filters = {}
+        self._discover_filters()
+
     def _discover_filters(self):
         "Called to discover existing filters"
-        filters = {}
         content = os.listdir(self.config["data_dir"])
         for c in content:
             if FILTER_PREFIX not in c: continue
@@ -46,18 +64,9 @@ class FilterManager(object):
 
             filt = ProxyFilter(self, self.config, filter_name, full_path,
                               custom=load_custom_settings(full_path))
-            filters[filter_name] = filt
+            self.filters[filter_name] = filt
+            self.filter_status[filter_name] = [STATUS_READY,threading.Condition()]
 
-        return filters
-
-    def create_filter(self, name, custom=None):
-        "Creates a new filter"
-        path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
-        if not os.path.exists(path): os.mkdir(path)
-        filt = Filter(self.config, name, path, custom=custom, discover=True)
-        self.filters[name] = filt
-        self.hot_filters.add(name)
-        return filt
 
     def schedule(self):
         "Schedules the filter manager into the twisted even loop"
@@ -75,17 +84,30 @@ class FilterManager(object):
 
     def _flush(self):
         "Called on a scheudle by twisted to flush the filters"
-        self.logger.debug("Starting scheduled flush")
-        start = time.time()
+        self.logger.info("Starting scheduled flush")
         for name,filt in self.filters.items():
-            filt.flush()
-        end = time.time()
-        self.logger.debug("Ending scheduled flush. Total time: %f seconds" % (end-start))
+            reactor.callInThread(self._flush_filter, name, filt)
+        self.logger.debug("Ending scheduled flush.")
+
+    def _flush_filter(self, name, filt):
+        """
+        Method that is called in a thread to flush a filter.
+        This MUST NOT be called in the main thread, otherwise
+        it could block the entire application.
+        """
+        # Check the filter status, wait for READY
+        ready = self._wait_and_set_filter_status(name, STATUS_FLUSHING)
+        if not ready: return
+
+        # Do the flush now that the state is set
+        filt.flush()
+
+        # Restore back to ready
+        self._set_filter_status(name, STATUS_READY)
 
     def _unmap_cold(self):
         "Called on a schedule by twisted to unmap cold filters"
-        self.logger.debug("Starting unmap cold filters")
-        start = time.time()
+        self.logger.info("Starting unmap cold filters")
 
         all_filters = set(self.filters.keys())
         cold_filters = all_filters - self.hot_filters
@@ -96,19 +118,57 @@ class FilterManager(object):
 
             # Close the actual filter
             self.logger.info("Unmapping filter '%s'" % name)
-            filt.close()
-
-            # Replace with a proxy filter
-            proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
-            proxy_filt.counters = filt.counters
-            proxy_filt.counters.page_outs += 1
-            self.filters[name] = proxy_filt
+            reactor.callInThread(self._unmap_cold_filter, name, filt)
 
         # Clear the hot filters
         self.hot_filters.clear()
 
-        end = time.time()
-        self.logger.debug("Ending scheduled cold unmap. Total time: %f seconds" % (end-start))
+        self.logger.debug("Ending scheduled cold unmap.")
+
+    def _unmap_cold_filter(self, name, filt):
+        """
+        Method that is called in a thread to unmap a filter.
+        This MUST NOT be called in the main thread, otherwise
+        it could block the entire application.
+        """
+        # Check the filter status, wait for READY
+        ready = self._wait_and_set_filter_status(name, STATUS_CLOSING)
+        if not ready: return
+
+        # Close the existing filter
+        filt.close()
+
+        # Replace with a proxy filter
+        proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
+        proxy_filt.counters = filt.counters
+        proxy_filt.counters.page_outs += 1
+        self.filters[name] = proxy_filt
+
+        # Restore status
+        self._set_filter_status(name, STATUS_READY)
+
+    def _wait_and_set_filter_status(self, name, set_status, wait_status=STATUS_READY, exit_status=STATUS_CLOSING):
+        """
+        Waits for the given status status, and sets it to the given one.
+        If we see the exit_status (STATUS_CLOSING default), we bail and return False.
+        If we see the wait_status (STATUS_READY default), then we update the status to set_status, and return True.
+        """
+        _, cond = self.filter_status[name]
+        with cond:
+            while True:
+                status = self.filter_status[name][0]
+                if status == exit_status: return False
+                elif status != wait_status: cond.wait()
+                else: break
+            self.filter_status[name][0] = set_status
+        return True
+
+    def _set_filter_status(self, name, status):
+        "Sets the status of the given filter"
+        _, cond = self.filter_status[name]
+        with cond:
+            self.filter_status[name][0] = status
+            cond.notify()
 
     def __getitem__(self, key):
         "Returns the filter"
@@ -122,6 +182,16 @@ class FilterManager(object):
     def __len__(self):
         "Returns the number of filters active"
         return len(self.filters)
+
+    def create_filter(self, name, custom=None):
+        "Creates a new filter"
+        path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
+        if not os.path.exists(path): os.mkdir(path)
+        filt = Filter(self.config, name, path, custom=custom, discover=True)
+        self.filters[name] = filt
+        self.filter_status[name] = [STATUS_READY,threading.Condition()]
+        self.hot_filters.add(name)
+        return filt
 
     def __delitem__(self, key):
         "Deletes the filter"
