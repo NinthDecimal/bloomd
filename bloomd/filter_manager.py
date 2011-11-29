@@ -135,14 +135,14 @@ class FilterManager(object):
         ready = self._wait_and_set_filter_status(name, STATUS_BUSY)
         if not ready: return
 
-        # Close the existing filter
-        filt.close()
-
         # Replace with a proxy filter
         proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
         proxy_filt.counters = filt.counters
         proxy_filt.counters.page_outs += 1
         self.filters[name] = proxy_filt
+
+        # Close the existing filter
+        filt.close()
 
         # Restore status
         self._set_filter_status(name, STATUS_READY)
