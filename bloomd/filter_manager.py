@@ -86,10 +86,11 @@ class FilterManager(object):
         "Called on a scheudle by twisted to flush the filters"
         self.logger.info("Starting scheduled flush")
         for name,filt in self.filters.items():
-            reactor.callInThread(self._flush_filter, name, filt)
+            if isinstance(filt, ProxyFilter): continue
+            reactor.callInThread(self.flush_filter, name)
         self.logger.debug("Ending scheduled flush.")
 
-    def _flush_filter(self, name, filt):
+    def flush_filter(self, name):
         """
         Method that is called in a thread to flush a filter.
         This MUST NOT be called in the main thread, otherwise
@@ -98,12 +99,13 @@ class FilterManager(object):
         # Check the filter status, wait for READY
         ready = self._wait_and_set_filter_status(name, STATUS_FLUSHING)
         if not ready: return
-
-        # Do the flush now that the state is set
-        filt.flush()
-
-        # Restore back to ready
-        self._notify_filter_status(name, STATUS_READY)
+        try:
+            # Do the flush now that the state is set
+            filt = self.filters[name]
+            filt.flush()
+        finally:
+            # Restore back to ready
+            self._notify_filter_status(name, STATUS_READY)
 
     def _unmap_cold(self):
         "Called on a schedule by twisted to unmap cold filters"
@@ -134,18 +136,18 @@ class FilterManager(object):
         # Check the filter status, wait for READY
         ready = self._wait_and_set_filter_status(name, STATUS_BUSY)
         if not ready: return
+        try:
+            # Replace with a proxy filter
+            proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
+            proxy_filt.counters = filt.counters
+            proxy_filt.counters.page_outs += 1
+            self.filters[name] = proxy_filt
 
-        # Replace with a proxy filter
-        proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
-        proxy_filt.counters = filt.counters
-        proxy_filt.counters.page_outs += 1
-        self.filters[name] = proxy_filt
-
-        # Close the existing filter
-        filt.close()
-
-        # Restore status
-        self._notify_filter_status(name, STATUS_READY)
+            # Close the existing filter
+            filt.close()
+        finally:
+            # Restore status
+            self._notify_filter_status(name, STATUS_READY)
 
     def _wait_and_set_filter_status(self, name, set_status, wait_status=STATUS_READY, exit_status=STATUS_CLOSING):
         """
@@ -180,40 +182,71 @@ class FilterManager(object):
         "Checks for the existence of a filter"
         return key in self.filters
 
-    def __len__(self):
-        "Returns the number of filters active"
-        return len(self.filters)
-
     def create_filter(self, name, custom=None):
-        "Creates a new filter"
-        path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
-        if not os.path.exists(path): os.mkdir(path)
-        filt = Filter(self.config, name, path, custom=custom, discover=True)
-        self.filters[name] = filt
-        self.filter_status[name] = [STATUS_READY,threading.Condition()]
-        self.hot_filters.add(name)
-        return filt
+        """
+        Creates a new filter. This may block execution,
+        and is not safe to run in the main event loop.
 
-    def __delitem__(self, key):
-        "Deletes the filter"
-        if key not in self.filters: return
-        filt = self.filters[key]
-        filt.close()
-        filt.delete()
-        del self.filters[key]
+        Parameters:
+            -`name` : The name of the filter
+            -`custom` : Optional, custom parameters.
+        """
+        # Mark the entire dictionary as busy, blocks other creates
+        self._wait_and_set_filter_status(None, STATUS_BUSY)
+        try:
+            # Bail if the filter exists
+            if name in self.filters: return self.filters[name]
 
-    def unmap(self, key):
-        "Closes and unmaps a filter"
-        if key not in self.filters: return
-        filt = self.filters[key]
-        filt.close()
-        del self.filters[key]
+            # Create the path
+            path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
+            if not os.path.exists(path): os.mkdir(path)
+
+            # Make a filter, not a proxy since it is probably hot
+            filt = Filter(self.config, name, path, custom=custom, discover=True)
+            self.filters[name] = filt
+            self.filter_status[name] = [STATUS_READY,threading.Condition()]
+            self.hot_filters.add(name)
+            return filt
+        finally:
+            self._notify_filter_status(None, STATUS_READY)
+
+    def drop_filter(self, name):
+        """
+        Deletes the filter. This may block execution,
+        and is not safe to run in the main event loop.
+
+        Parameters:
+            -`name` : The name of the filter to drop
+        """
+        # Use unmap, but also delete the filter
+        self.unmap_filter(name, delete=True)
+
+    def unmap_filter(self, name, delete=False):
+        """
+        Closes and unmaps a filter. This may block execution,
+        and is not safe to run in the main event loop.
+
+        Parameters:
+            -`name` : The name of the filter to unmap
+        """
+        # Wait until ready, mark as closing
+        if name not in self.filters: return
+        ready = self._wait_and_set_filter_status(name, STATUS_CLOSING)
+        if not ready: return
+        try:
+            filt = self.filters[name]
+            filt.close()
+            if delete: filt.delete()
+            del self.filters[name]
+        finally:
+            # Notify everybody, but leave status as closing
+            self._notify_filter_status(name, STATUS_CLOSING, all=True)
 
     def close(self):
         "Prepares for shutdown, closes all filters"
         for name,filt in self.filters.items():
             filt.close()
-            del self.filters[name]
+        self.filters.clear()
         if self._schedule_flush:
             self._schedule_flush.stop()
             self._schedule_flush = None
