@@ -18,9 +18,9 @@ FILTER_PREFIX = "bloomd."
 
 # Possible statuses
 STATUS_READY = "ready"
-STATUS_BUSY = "busy"
-STATUS_CLOSING = "closing"
-STATUS_FLUSHING = "flushing"
+STATUS_BUSY = "busy" # Concurrent reads/writes not permitted
+STATUS_CLOSING = "closing" # Busy, and will not be ready
+STATUS_FLUSHING = "flushing" # Busy, concurrent reads/writes permitted
 
 def load_custom_settings(full_path):
     "Loads a custom configuration from a path, or None"
@@ -132,7 +132,7 @@ class FilterManager(object):
         it could block the entire application.
         """
         # Check the filter status, wait for READY
-        ready = self._wait_and_set_filter_status(name, STATUS_CLOSING)
+        ready = self._wait_and_set_filter_status(name, STATUS_BUSY)
         if not ready: return
 
         # Close the existing filter
