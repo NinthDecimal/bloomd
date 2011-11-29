@@ -103,7 +103,7 @@ class FilterManager(object):
         filt.flush()
 
         # Restore back to ready
-        self._set_filter_status(name, STATUS_READY)
+        self._notify_filter_status(name, STATUS_READY)
 
     def _unmap_cold(self):
         "Called on a schedule by twisted to unmap cold filters"
@@ -145,7 +145,7 @@ class FilterManager(object):
         filt.close()
 
         # Restore status
-        self._set_filter_status(name, STATUS_READY)
+        self._notify_filter_status(name, STATUS_READY)
 
     def _wait_and_set_filter_status(self, name, set_status, wait_status=STATUS_READY, exit_status=STATUS_CLOSING):
         """
@@ -163,12 +163,13 @@ class FilterManager(object):
             self.filter_status[name][0] = set_status
         return True
 
-    def _set_filter_status(self, name, status):
-        "Sets the status of the given filter"
+    def _notify_filter_status(self, name, status, all=False):
+        "Sets the status of the given filter and notify waiters"
         _, cond = self.filter_status[name]
         with cond:
             self.filter_status[name][0] = status
-            cond.notify()
+            if all: cond.notify_all()
+            else: cond.notify()
 
     def __getitem__(self, key):
         "Returns the filter"
