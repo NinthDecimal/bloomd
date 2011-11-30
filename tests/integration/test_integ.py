@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import subprocess
 import time
+import threading
 import socket
 
 def pytest_funcarg__servers(request):
@@ -186,4 +187,104 @@ class TestInteg(object):
             server.sendall("check pingpong test%d\n" % x)
             assert fh.readline() == "Yes\n"
 
+    def test_concurrent_drop(self, servers):
+        "Tests setting values and do a concurrent drop on the DB"
+        server, server_udp = servers
+        fh = server.makefile()
+
+        def loopset():
+            for x in xrange(10000):
+                server.sendall("set pingpong test%d\n" % x)
+                resp = fh.readline()
+                if resp != "Yes\n":
+                    assert resp == "Filter does not exist\n" and x > 100
+                    return
+                else:
+                    assert resp == "Yes\n"
+            assert False
+
+        def drop():
+            time.sleep(0.2)
+            server_udp.sendall("drop pingpong\n")
+
+        server.sendall("create pingpong\n")
+        fh.readline() == "Done\n"
+        t = threading.Thread(target=drop)
+        t.start()
+        loopset()
+
+    def test_concurrent_close(self, servers):
+        "Tests setting values and do a concurrent close on the DB"
+        server, server_udp = servers
+        fh = server.makefile()
+
+        def loopset():
+            for x in xrange(10000):
+                server.sendall("set pingpong test%d\n" % x)
+                resp = fh.readline()
+                if resp != "Yes\n":
+                    assert resp == "Filter does not exist\n" and x > 100
+                    return
+                else:
+                    assert resp == "Yes\n"
+            assert False
+
+        def close():
+            time.sleep(0.2)
+            server_udp.sendall("close pingpong\n")
+
+        server.sendall("create pingpong\n")
+        fh.readline() == "Done\n"
+        t = threading.Thread(target=close)
+        t.start()
+        loopset()
+
+    def test_concurrent_flush(self, servers):
+        "Tests setting values and do a concurrent flush"
+        server, server_udp = servers
+        fh = server.makefile()
+
+        def loopset():
+            for x in xrange(10000):
+                server.sendall("set pingpong test%d\n" % x)
+                resp = fh.readline()
+                assert resp == "Yes\n"
+
+        def flush():
+            for x in xrange(3):
+                time.sleep(0.1)
+                server_udp.sendall("flush pingpong\n")
+
+        server.sendall("create pingpong\n")
+        fh.readline() == "Done\n"
+        t = threading.Thread(target=flush)
+        t.start()
+        loopset()
+
+    def test_concurrent_create(self, servers):
+        "Tests creating a filter with concurrent sets"
+        server, server_udp = servers
+        fh = server.makefile()
+
+        def loopset():
+            for x in xrange(1000):
+                server.sendall("set pingpong test%d\n" % x)
+                resp = fh.readline()
+                assert resp == "Yes\n"
+            for r in xrange(3):
+                for x in xrange(1000):
+                    server.sendall("set pingpong%d test%d\n" % (r,x))
+                    resp = fh.readline()
+                    assert resp == "Yes\n"
+
+        def create():
+            for x in xrange(10):
+                time.sleep(0.05)
+                server_udp.sendall("create pingpong%d\n" % x)
+
+        server.sendall("create pingpong\n")
+        fh.readline() == "Done\n"
+        t = threading.Thread(target=create)
+        t.start()
+        loopset()
 
