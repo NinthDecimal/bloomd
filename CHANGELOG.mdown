@@ -1,0 +1,48 @@
+# 0.4.0 
+
+ * Upgrade pyblooming requirement to 0.3.0
+ * Remove support for async flushing (always use MS_SYNC)
+ * Added Read-Write locks at a per-filter level
+ * Flushes are done concurrently with checks/sets to prevent blocking the main thread
+
+# 0.3.0
+
+ * Upgrade pyblooming requirement to 0.2.0
+ * Introduce support for async flushing (msync is called with MS_ASYNC instead of MS_SYNC)
+ * SHA: efea90cd1349bde2e3b977b1a0402feac7db75d1
+
+# 0.2.3
+
+ * Default all filters to 1 page in on creation
+ * ProxyFilters will properly report size, capacity and byte_size after a page out
+ * Remove logging from calls to ProxyFilter close / flush
+ * SHA: 0681119c3d11da710be43d54e913b4ae0b5eb93c
+
+# 0.2.2
+
+ * Fixed bug where calling `conf` and `info` would prevent unmaping cold filters
+ * SHA: 632163741e1d570e49521f53cbe6d2f672976784
+
+# 0.2.1
+
+ * Changes some logging levels from info to debug
+ * SHA: 9d51dda9696babcf06c1b90ba15889f8b1f71547
+
+# 0.2.0
+
+ * Documentation cleanup
+ * Minor fixes
+ * SHA: 9b41cebaa16cc49ff2b1bbd5760c763fb3864bb8
+
+# 0.1.2
+
+ * Added support for "ProxyFilters" which allows removing filters from memory
+ * Support for cold intervals, which automatically remove filters from memory
+ * Add statistics for page ins and page outs for filters
+ * SHA: 079cf4228dd6c60969bdf66339badcea1c86d661
+
+# 0.1.0
+
+ * Initial version released.
+ * Git SHA: 34b377fc94101bdfcbb88f9c387ff2830e853f9b
+
