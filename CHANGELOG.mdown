@@ -40,6 +40,7 @@
  * Added support for "ProxyFilters" which allows removing filters from memory
  * Support for cold intervals, which automatically remove filters from memory
  * Add statistics for page ins and page outs for filters
+ * Added support for `close` command, that unmaps filters from memory but leaves them addressable
  * SHA: 079cf4228dd6c60969bdf66339badcea1c86d661
 
 # 0.1.0
