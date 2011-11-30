@@ -74,7 +74,7 @@ class APIHandler(object):
         if name not in cls.MANAGER:
             return "Filter does not exist"
         else:
-            del cls.MANAGER[name]
+            cls.MANAGER.drop_filter(name)
             return "Done"
 
     @classmethod
@@ -85,7 +85,7 @@ class APIHandler(object):
         if name not in cls.MANAGER:
             return "Filter does not exist"
         else:
-            cls.MANAGER.unmap(name)
+            cls.MANAGER.unmap_filter(name)
             return "Done"
 
     @classmethod
