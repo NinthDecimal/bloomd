@@ -139,6 +139,46 @@ class FilterManager(object):
         "Checks for the existence of a filter"
         return key in self.filters
 
+    def check_key(self, name, key):
+        """
+        Checks if a filter with the given name contains a key.
+        Return True if contained, else False. May block execution,
+        and is not safe to run in the main loop.
+
+        Parameters:
+            -`name`: The filter name
+            -`key`: The key value
+
+        Raises KeyError if the filter does not exist.
+        """
+        self.filter_locks[name].acquireRead()
+        try:
+            filt = self.filters[name]
+            self.hot_filters.add(name)
+            return key in filt
+        finally:
+            self.filter_locks[name].release()
+
+    def set_key(self, name, key):
+        """
+        Sets a key in a filter with the given name.
+        Return True if added, else False. May block execution,
+        and is not safe to run in the main loop.
+
+        Parameters:
+            -`name`: The filter name
+            -`key`: The key value
+
+        Raises KeyError if the filter does not exist.
+        """
+        self.filter_locks[name].acquireRead()
+        try:
+            filt = self.filters[name]
+            self.hot_filters.add(name)
+            return filt.add(key)
+        finally:
+            self.filter_locks[name].release()
+
     def create_filter(self, name, custom=None):
         """
         Creates a new filter. This may block execution,
