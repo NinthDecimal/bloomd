@@ -3,9 +3,12 @@ Contains tests for the Filter and FilterManager classes.
 """
 import os
 import shutil
+import time
 import tempfile
+import threading
 import pytest
 from bloomd import config, filter_manager
+from twisted.internet import reactor
 
 def pytest_funcarg__config(request):
     "Returns the default configuration"
@@ -28,6 +31,19 @@ def pytest_funcarg__manager(request):
         def __init__(self):
             self.filters = {}
     return Manager()
+
+def pytest_funcarg__treactor(request):
+    "Makes a fucking reactor"
+    for t in threading.enumerate():
+        if t.name == "REACTOR": return t
+    t = threading.Thread(target=reactor.run, kwargs={"installSignalHandlers":0},name="REACTOR")
+    t.daemon = True
+    t.start()
+    def shutdown():
+        reactor.getThreadPool().stop()
+        reactor.stop()
+    request.addfinalizer(shutdown)
+    return t
 
 class TestFilter(object):
     def test_filter_blank(self, config, tmpdir):
@@ -226,7 +242,7 @@ class TestFilterManager(object):
         f.flush_filter("foo")
         assert not foo.dirty
 
-    def test_unmap_cold(self, config, tmpdir):
+    def test_unmap_cold(self, config, tmpdir, treactor):
         "Tests unmap"
         config["data_dir"] = tmpdir
         f = filter_manager.FilterManager(config)
@@ -241,6 +257,7 @@ class TestFilterManager(object):
         # Should turn into a proxy now
         f._unmap_cold()
         assert "foo" not in f.hot_filters
+        time.sleep(1) # Wait for the tasks
         assert isinstance(f.filters["foo"], filter_manager.ProxyFilter)
 
     def test_unmap(self, config, tmpdir):
