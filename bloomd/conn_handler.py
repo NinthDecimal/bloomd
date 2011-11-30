@@ -59,34 +59,39 @@ class APIHandler(object):
     def list(cls, *args):
         ret = {}
         for key, filt in cls.MANAGER.filters.items():
-            prob = filt.config["default_probability"]
-            storage = filt.byte_size()
-            capacity = filt.capacity()
-            size = len(filt)
-            ret[key] = " ".join([str(s) for s in [prob, storage, capacity, size]])
+            try:
+                prob = filt.config["default_probability"]
+                storage = filt.byte_size()
+                capacity = filt.capacity()
+                size = len(filt)
+                ret[key] = " ".join([str(s) for s in [prob, storage, capacity, size]])
+            except:
+                # Ignore things if we get an error, that filter
+                # might be in a state of flux
+                pass
         return ret
 
     @classmethod
     def drop(cls, *args):
         if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
-
-        if name not in cls.MANAGER:
-            return "Filter does not exist"
-        else:
+        try:
+            if name not in cls.MANAGER: raise KeyError
             cls.MANAGER.drop_filter(name)
             return "Done"
+        except KeyError:
+            return "Filter does not exist"
 
     @classmethod
     def close(cls, *args):
         if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
-
-        if name not in cls.MANAGER:
-            return "Filter does not exist"
-        else:
+        try:
+            if name not in cls.MANAGER: raise KeyError
             cls.MANAGER.unmap_filter(name)
             return "Done"
+        except KeyError:
+            return "Filter does not exist"
 
     @classmethod
     def check(cls, *args):
@@ -94,8 +99,7 @@ class APIHandler(object):
         name = args[0]
         key = args[1]
         try:
-            filt = cls.MANAGER[name]
-            res = key in filt
+            res = cls.MANAGER.check_key(name, key)
             return "Yes" if res else "No"
         except KeyError:
             return "Filter does not exist"
@@ -106,8 +110,7 @@ class APIHandler(object):
         name = args[0]
         key = args[1]
         try:
-            filt = cls.MANAGER[name]
-            res = filt.add(key)
+            res = cls.MANAGER.set_key(name, key)
             return "Yes" if res else "No"
         except KeyError:
             return "Filter does not exist"
@@ -116,10 +119,11 @@ class APIHandler(object):
     def info(cls, *args):
         if len(args) < 1: return "Client Error: Must provide filter name"
         name = args[0]
-        if name not in cls.MANAGER: return "Filter does not exist"
-        # Use the filters directly to avoid adding to the hot list
-        filt = cls.MANAGER.filters[name]
-
+        try:
+            # Use the filters directly to avoid adding to the hot list
+            filt = cls.MANAGER.filters[name]
+        except KeyError:
+            return "Filter does not exist"
         res = {}
         res["probability"] = str(filt.config["default_probability"])
         res["storage"] = str(filt.byte_size())
@@ -134,13 +138,18 @@ class APIHandler(object):
         # Check if we are flushing a specific filter
         if len(args) >= 1:
             name = args[0]
-            if name not in cls.MANAGER: return "Filter does not exist"
-            cls.MANAGER[name].flush()
-            return "Done"
+            try:
+                cls.MANAGER.flush_filter(name)
+                return "Done"
+            except KeyError:
+                return "Filter does not exist"
 
         # Flush all filters
-        for name,filt in cls.MANAGER.filters.items():
-            filt.flush()
+        for name in cls.MANAGER.filters.keys():
+            try:
+                cls.MANAGER.flush_filter(name)
+            except KeyError:
+                pass # May have been deleted/unmapped
         return "Done"
 
     @classmethod
@@ -150,10 +159,12 @@ class APIHandler(object):
             return cls.MANAGER.config
         else:
             name = args[0]
-            if name not in cls.MANAGER: return "Filter does not exist"
-            ret = {"name":name}
-            ret.update(cls.MANAGER.filters[name].config)
-            return ret
+            try:
+                ret = {"name":name}
+                ret.update(cls.MANAGER.filters[name].config)
+                return ret
+            except KeyError:
+                return "Filter does not exist"
 
 class ConnHandler(LineOnlyReceiver):
     "Simple Twisted Protocol handler to parse incoming commands"
