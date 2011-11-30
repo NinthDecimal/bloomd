@@ -139,6 +139,10 @@ class FilterManager(object):
         "Checks for the existence of a filter"
         return key in self.filters
 
+    def __len__(self):
+        "Returns the number of filters"
+        return len(self.filters)
+
     def check_key(self, name, key):
         """
         Checks if a filter with the given name contains a key.
