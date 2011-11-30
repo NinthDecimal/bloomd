@@ -194,7 +194,7 @@ class TestFilterManager(object):
         foo = f.create_filter("foo")
         assert len(f) == 1
         assert "foo" in f
-        assert f["foo"] == foo
+        assert f.filters["foo"] == foo
 
     def test_delete(self, config, tmpdir):
         "Makes a filter manager with stock config, should work."
@@ -202,7 +202,7 @@ class TestFilterManager(object):
         f = filter_manager.FilterManager(config)
         assert len(f) == 0
         f.create_filter("foo")
-        del f["foo"]
+        f.drop_filter("foo")
         assert len(f) == 0
         assert "foo" not in f
         assert os.listdir(tmpdir) == []
@@ -223,7 +223,7 @@ class TestFilterManager(object):
         f = filter_manager.FilterManager(config)
         foo = f.create_filter("foo")
         assert foo.dirty
-        f._flush()
+        f.flush_filter("foo")
         assert not foo.dirty
 
     def test_unmap_cold(self, config, tmpdir):
@@ -250,9 +250,9 @@ class TestFilterManager(object):
         f.create_filter("foo")
         f.create_filter("bar")
         f.create_filter("baz")
-        f.unmap("foo")
-        f.unmap("bar")
-        f.unmap("baz")
+        f.unmap_filter("foo")
+        f.unmap_filter("bar")
+        f.unmap_filter("baz")
         assert len(f.filters) == 0
 
     def test_discover(self, config, tmpdir):
@@ -265,7 +265,7 @@ class TestFilterManager(object):
 
         f = filter_manager.FilterManager(config)
         assert "test" in f
-        assert f["test"].capacity() == config["initial_capacity"]
+        assert f.filters["test"].capacity() == config["initial_capacity"]
 
     def test_recovery(self, config, tmpdir):
         "Tests recovering existing filters"
@@ -288,9 +288,9 @@ class TestFilterManager(object):
         f.create_filter("foo")
         f.create_filter("bar")
         f.create_filter("baz")
-        f.unmap("foo")
-        f.unmap("bar")
-        f.unmap("baz")
+        f.unmap_filter("foo")
+        f.unmap_filter("bar")
+        f.unmap_filter("baz")
         f.close()
 
         f = filter_manager.FilterManager(config)
@@ -303,15 +303,15 @@ class TestFilterManager(object):
         config["data_dir"] = tmpdir
         f = filter_manager.FilterManager(config)
         f.create_filter("foo")
-        f["foo"].add("1")
-        f["foo"].add("2")
-        f["foo"].add("3")
-        f.unmap("foo")
+        f.set_key("foo", "1")
+        f.set_key("foo", "2")
+        f.set_key("foo", "3")
+        f.unmap_filter("foo")
 
         f.create_filter("foo")
-        assert len(f["foo"]) == 3
-        assert "1" in f["foo"]
-        assert "2" in f["foo"]
-        assert "3" in f["foo"]
+        assert len(f.filters["foo"]) == 3
+        assert "1" in f.filters["foo"]
+        assert "2" in f.filters["foo"]
+        assert "3" in f.filters["foo"]
         f.close()
 
