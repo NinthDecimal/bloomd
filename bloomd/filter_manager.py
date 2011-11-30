@@ -189,7 +189,7 @@ class FilterManager(object):
             -`custom` : Optional, custom parameters.
         """
         # Mark the entire dictionary as busy, blocks other creates
-        self.filter_locks[None].acquireWriter()
+        self.filter_locks[None].acquireWrite()
         try:
             # Bail if the filter exists
             if name in self.filters: return self.filters[name]
