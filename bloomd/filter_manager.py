@@ -7,20 +7,14 @@ import cPickle
 import logging
 import os
 import os.path
-import threading
 
 from twisted.internet import task, reactor
 
 from filters import Filter, ProxyFilter
+from rwlock import ReadWriteLock
 
 # Prefix we add to bloomd directories
 FILTER_PREFIX = "bloomd."
-
-# Possible statuses
-STATUS_READY = "ready"
-STATUS_BUSY = "busy" # Concurrent reads/writes not permitted
-STATUS_CLOSING = "closing" # Busy, and will not be ready
-STATUS_FLUSHING = "flushing" # Busy, concurrent reads/writes permitted
 
 def load_custom_settings(full_path):
     "Loads a custom configuration from a path, or None"
@@ -39,13 +33,11 @@ class FilterManager(object):
         self._schedule_cold = None
 
         # We use the filter status dictionary to map
-        # the names of the filter onto a tuple that has
-        # the status of the filter as the 0th index, and a Condition
-        # object as the second. The status is one of "ready","busy",
-        # "flushing", and "closing". This is used to protect
-        # the filters, and provide finer grained locking of resources.
-        # We use a special None key to control the entire dictionary.
-        self.filter_status = {None:[STATUS_READY,threading.Condition()]}
+        # the names of the filter onto a R/W Lock.
+        # Write lock is required to create/drop/unmap filters.
+        # Flushing just requires a read lock, since concurrent
+        # reads and writes can take place
+        self.filter_locks = {None:ReadWriteLock()}
 
         # Map of filter name to filter objects
         self.filters = {}
@@ -65,7 +57,7 @@ class FilterManager(object):
             filt = ProxyFilter(self, self.config, filter_name, full_path,
                               custom=load_custom_settings(full_path))
             self.filters[filter_name] = filt
-            self.filter_status[filter_name] = [STATUS_READY,threading.Condition()]
+            self.filter_locks[filter_name] = ReadWriteLock()
 
 
     def schedule(self):
@@ -96,16 +88,13 @@ class FilterManager(object):
         This MUST NOT be called in the main thread, otherwise
         it could block the entire application.
         """
-        # Check the filter status, wait for READY
-        ready = self._wait_and_set_filter_status(name, STATUS_FLUSHING)
-        if not ready: return
+        self.filter_locks[name].acquireRead()
         try:
             # Do the flush now that the state is set
             filt = self.filters[name]
             filt.flush()
         finally:
-            # Restore back to ready
-            self._notify_filter_status(name, STATUS_READY)
+            self.filter_locks[name].release()
 
     def _unmap_cold(self):
         "Called on a schedule by twisted to unmap cold filters"
@@ -133,9 +122,7 @@ class FilterManager(object):
         This MUST NOT be called in the main thread, otherwise
         it could block the entire application.
         """
-        # Check the filter status, wait for READY
-        ready = self._wait_and_set_filter_status(name, STATUS_BUSY)
-        if not ready: return
+        self.filter_locks[name].acquireWrite()
         try:
             # Replace with a proxy filter
             proxy_filt = ProxyFilter(self, filt.config, name, filt.path)
@@ -146,37 +133,7 @@ class FilterManager(object):
             # Close the existing filter
             filt.close()
         finally:
-            # Restore status
-            self._notify_filter_status(name, STATUS_READY)
-
-    def _wait_and_set_filter_status(self, name, set_status, wait_status=STATUS_READY, exit_status=STATUS_CLOSING):
-        """
-        Waits for the given status status, and sets it to the given one.
-        If we see the exit_status (STATUS_CLOSING default), we bail and return False.
-        If we see the wait_status (STATUS_READY default), then we update the status to set_status, and return True.
-        """
-        _, cond = self.filter_status[name]
-        with cond:
-            while True:
-                status = self.filter_status[name][0]
-                if status == exit_status: return False
-                elif status != wait_status: cond.wait()
-                else: break
-            self.filter_status[name][0] = set_status
-        return True
-
-    def _notify_filter_status(self, name, status, all=False):
-        "Sets the status of the given filter and notify waiters"
-        _, cond = self.filter_status[name]
-        with cond:
-            self.filter_status[name][0] = status
-            if all: cond.notify_all()
-            else: cond.notify()
-
-    def __getitem__(self, key):
-        "Returns the filter"
-        self.hot_filters.add(key)
-        return self.filters[key]
+            self.filter_locks[name].release()
 
     def __contains__(self, key):
         "Checks for the existence of a filter"
@@ -192,7 +149,7 @@ class FilterManager(object):
             -`custom` : Optional, custom parameters.
         """
         # Mark the entire dictionary as busy, blocks other creates
-        self._wait_and_set_filter_status(None, STATUS_BUSY)
+        self.filter_locks[None].acquireWriter()
         try:
             # Bail if the filter exists
             if name in self.filters: return self.filters[name]
@@ -204,11 +161,11 @@ class FilterManager(object):
             # Make a filter, not a proxy since it is probably hot
             filt = Filter(self.config, name, path, custom=custom, discover=True)
             self.filters[name] = filt
-            self.filter_status[name] = [STATUS_READY,threading.Condition()]
+            self.filter_locks[name] = ReadWriteLock()
             self.hot_filters.add(name)
             return filt
         finally:
-            self._notify_filter_status(None, STATUS_READY)
+            self.filter_locks[None].release()
 
     def drop_filter(self, name):
         """
@@ -231,16 +188,14 @@ class FilterManager(object):
         """
         # Wait until ready, mark as closing
         if name not in self.filters: return
-        ready = self._wait_and_set_filter_status(name, STATUS_CLOSING)
-        if not ready: return
+        self.filter_locks[name].acquireWrite()
         try:
             filt = self.filters[name]
             filt.close()
             if delete: filt.delete()
             del self.filters[name]
         finally:
-            # Notify everybody, but leave status as closing
-            self._notify_filter_status(name, STATUS_CLOSING, all=True)
+            self.filter_locks[name].release()
 
     def close(self):
         "Prepares for shutdown, closes all filters"
