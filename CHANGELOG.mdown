@@ -4,12 +4,13 @@
  * Remove support for async flushing (always use MS_SYNC)
  * Added Read-Write locks at a per-filter level
  * Flushes are done concurrently with checks/sets to prevent blocking the main thread
+ * SHA: bcb4445cea84027f24cd367158b62672b51ee243
 
 # 0.3.0
 
  * Upgrade pyblooming requirement to 0.2.0
  * Introduce support for async flushing (msync is called with MS_ASYNC instead of MS_SYNC)
- * SHA: efea90cd1349bde2e3b977b1a0402feac7db75d1
+ * SHA: ff52ddea418e4c7227d056e22485f563a9783128
 
 # 0.2.3
 
