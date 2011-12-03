@@ -16,12 +16,16 @@ from rwlock import ReadWriteLock
 # Prefix we add to bloomd directories
 FILTER_PREFIX = "bloomd."
 
-def load_custom_settings(full_path):
+def load_custom_settings(full_path, logger):
     "Loads a custom configuration from a path, or None"
-    config_path = os.path.join(full_path, "config")
-    if not os.path.exists(config_path): return None
-    raw = open(config_path).read()
-    return cPickle.loads(raw)
+    try:
+        config_path = os.path.join(full_path, "config")
+        if not os.path.exists(config_path): return None
+        raw = open(config_path).read()
+        return cPickle.loads(raw)
+    except:
+        logger.exception("Failed to load custom settings!")
+        return {}
 
 class FilterManager(object):
     "Manages all the currently active filters in the system."
@@ -52,10 +56,13 @@ class FilterManager(object):
             if not os.path.isdir(full_path): continue
 
             filter_name = c.replace(FILTER_PREFIX, "")
-            self.logger.info("Discovered filter: %s" % filter_name)
+            try:
+                filt = ProxyFilter(self, self.config, filter_name, full_path,
+                                  custom=load_custom_settings(full_path, self.logger))
+            except:
+                self.logger.error("Failed to load filter: %s" % filter_name)
+                continue
 
-            filt = ProxyFilter(self, self.config, filter_name, full_path,
-                              custom=load_custom_settings(full_path))
             self.filters[filter_name] = filt
             self.filter_locks[filter_name] = ReadWriteLock()
 
@@ -244,7 +251,10 @@ class FilterManager(object):
     def close(self):
         "Prepares for shutdown, closes all filters"
         for name,filt in self.filters.items():
-            filt.close()
+            try:
+                filt.close()
+            except:
+                self.logger.exception("Error closing filter '%s'!" % name)
         self.filters.clear()
         if self._schedule_flush:
             self._schedule_flush.stop()
