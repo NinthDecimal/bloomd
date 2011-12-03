@@ -82,6 +82,9 @@ def main():
     reactor.listenTCP(config["port"],ConnHandler.getFactory())
     logging.getLogger('bloomd').info("TCP Handler started on port %d" % config["port"])
 
+    # Suggest only 1 thread, since we are I/O bound
+    reactor.suggestThreadPoolSize(1)
+
     # Start everything
     start()
     logging.getLogger('bloomd').info("Exiting")
