@@ -14,7 +14,7 @@ class Filter(object):
         self.config = dict(config)
         if custom:
             self.config.update(custom)
-            self.logger.info("Loaded custom configuration! Config: %s" % self.config)
+            self.logger.debug("Loaded custom configuration! Config: %s" % self.config)
         self.path = full_path
         if discover: self._discover()
         else: self._create_filter()
@@ -27,7 +27,7 @@ class Filter(object):
         # Discover the fragments
         fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
         fileparts.sort()
-        self.logger.info("Found %d files: %s" % (len(fileparts), fileparts))
+        self.logger.debug("Found %d files: %s" % (len(fileparts), fileparts))
 
         # Get the bitmaps
         paths = [os.path.join(self.path, part) for part in fileparts]
@@ -68,8 +68,14 @@ class Filter(object):
         # First, write out our settings
         start = time.time()
         config_path = os.path.join(self.path, "config")
+        tmp_config_path = os.path.join(self.path, "config.tmp")
         raw = cPickle.dumps(self.config)
-        open(config_path, "w").write(raw)
+        fh = open(tmp_config_path, "w")
+        fh.write(raw)
+        fh.close()
+
+        # Move into place
+        os.rename(tmp_config_path, config_path)
 
         # Flush the filter
         if self.filter is not None: self.filter.flush()
@@ -136,7 +142,7 @@ class ProxyFilter(object):
         self.config.setdefault("byte_size",0)
         if custom:
             self.config.update(custom)
-            self.logger.info("Loaded custom configuration! Config: %s" % self.config)
+            self.logger.debug("Loaded custom configuration! Config: %s" % self.config)
         self.path = full_path
         self.counters = Counters()
 
