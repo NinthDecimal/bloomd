@@ -16,7 +16,7 @@ from rwlock import ReadWriteLock
 # Prefix we add to bloomd directories
 FILTER_PREFIX = "bloomd."
 
-def load_custom_settings(full_path, logger):
+def load_custom_settings(full_path, logger=None):
     "Loads a custom configuration from a path, or None"
     try:
         config_path = os.path.join(full_path, "config")
@@ -26,11 +26,12 @@ def load_custom_settings(full_path, logger):
         tcp_exists = os.path.exists(tmp_config_path)
         if not (cp_exists or tcp_exists):
             return None
-        file = config_path if os.path.exist(
-        raw = open(config_path).read()
+
+        filename = config_path if cp_exists else tmp_config_path
+        raw = open(filename).read()
         return cPickle.loads(raw)
     except:
-        logger.exception("Failed to load custom settings!")
+        if logger: logger.exception("Failed to load custom settings!")
         return {}
 
 class FilterManager(object):
