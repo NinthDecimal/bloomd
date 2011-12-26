@@ -157,15 +157,15 @@ class FilterManager(object):
         "Returns the number of filters"
         return len(self.filters)
 
-    def check_key(self, name, key):
+    def check_keys(self, name, keys):
         """
         Checks if a filter with the given name contains a key.
-        Return True if contained, else False. May block execution,
+        Returns a list of booleans if contained. May block execution,
         and is not safe to run in the main loop.
 
         Parameters:
             -`name`: The filter name
-            -`key`: The key value
+            -`keys`: The key values to check
 
         Raises KeyError if the filter does not exist.
         """
@@ -173,19 +173,19 @@ class FilterManager(object):
         try:
             filt = self.filters[name]
             self.hot_filters.add(name)
-            return key in filt
+            return [key in filt for key in keys]
         finally:
             self.filter_locks[name].release()
 
-    def set_key(self, name, key):
+    def set_keys(self, name, keys):
         """
-        Sets a key in a filter with the given name.
-        Return True if added, else False. May block execution,
+        Sets mulitple keys in a filter with the given name.
+        Return a list of booleans if added. May block execution,
         and is not safe to run in the main loop.
 
         Parameters:
             -`name`: The filter name
-            -`key`: The key value
+            -`keys`: The keys to add
 
         Raises KeyError if the filter does not exist.
         """
@@ -193,7 +193,7 @@ class FilterManager(object):
         try:
             filt = self.filters[name]
             self.hot_filters.add(name)
-            return filt.add(key)
+            return [filt.add(key) for key in keys]
         finally:
             self.filter_locks[name].release()
 
