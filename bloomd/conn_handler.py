@@ -94,15 +94,39 @@ class APIHandler(object):
             return "Filter does not exist"
 
     @classmethod
+    def c(cls, *args):
+        return cls.check(*args)
+
+    @classmethod
     def check(cls, *args):
         if len(args) < 2: return "Client Error: Must provide filter name and key"
         name = args[0]
         key = args[1]
         try:
-            res = cls.MANAGER.check_key(name, key)
-            return "Yes" if res else "No"
+            res = cls.MANAGER.check_keys(name, [key])
+            return "Yes" if res[0] else "No"
         except KeyError:
             return "Filter does not exist"
+
+    @classmethod
+    def m(cls, *args):
+        return cls.bulk(*args)
+
+    @classmethod
+    def multi(cls, *args):
+        if len(args) < 2: return "Client Error: Must provide filter name and at least one key"
+        name = args[0]
+        keys = args[1].strip().split(" ")
+        try:
+            results = cls.MANAGER.check_keys(name, keys)
+            results = ["Yes" if r else "No" for r in results]
+            return " ".join(results)
+        except KeyError:
+            return "Filter does not exist"
+
+    @classmethod
+    def s(cls, *args):
+        return cls.set(*args)
 
     @classmethod
     def set(cls, *args):
@@ -110,8 +134,24 @@ class APIHandler(object):
         name = args[0]
         key = args[1]
         try:
-            res = cls.MANAGER.set_key(name, key)
-            return "Yes" if res else "No"
+            res = cls.MANAGER.set_keys(name, [key])
+            return "Yes" if res[0] else "No"
+        except KeyError:
+            return "Filter does not exist"
+
+    @classmethod
+    def b(cls, *args):
+        return cls.bulk(*args)
+
+    @classmethod
+    def bulk(cls, *args):
+        if len(args) < 2: return "Client Error: Must provide filter name and at least one key"
+        name = args[0]
+        keys = args[1].strip().split(" ")
+        try:
+            results = cls.MANAGER.set_keys(name, keys)
+            results = ["Yes" if r else "No" for r in results]
+            return " ".join(results)
         except KeyError:
             return "Filter does not exist"
 
