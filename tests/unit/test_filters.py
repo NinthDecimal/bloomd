@@ -320,9 +320,7 @@ class TestFilterManager(object):
         config["data_dir"] = tmpdir
         f = filter_manager.FilterManager(config)
         f.create_filter("foo")
-        f.set_key("foo", "1")
-        f.set_key("foo", "2")
-        f.set_key("foo", "3")
+        f.set_keys("foo", ["1","2","3"])
         f.unmap_filter("foo")
 
         f.create_filter("foo")

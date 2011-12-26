@@ -93,6 +93,35 @@ class TestAPI(object):
         handler.create("test")
         assert handler.set("test","foo") == "Yes"
 
+    def test_bulk(self, handler):
+        "Test bulk set of items in blank filter"
+        handler.create("test")
+        assert handler.bulk("test","foo bar") == "Yes Yes"
+        assert handler.check("test","foo") == "Yes"
+        assert handler.check("test","bar") == "Yes"
+        assert handler.multi("test","foo bar") == "Yes Yes"
+
+    def test_bulk_single(self, handler):
+        "Test bulk set of items in blank filter"
+        handler.create("test")
+        assert handler.bulk("test","foobar") == "Yes"
+        assert handler.check("test","foobar") == "Yes"
+        assert handler.multi("test","foobar") == "Yes"
+
+    def test_multi(self, handler):
+        "Test multi get of items in blank filter"
+        handler.create("test")
+        assert handler.multi("test","foo bar") == "No No"
+        assert handler.set("test","foo") == "Yes"
+        assert handler.multi("test","foo bar") == "Yes No"
+
+    def test_bulk_single(self, handler):
+        "Test bulk set of items in blank filter"
+        handler.create("test")
+        assert handler.multi("test","foobar") == "No"
+        assert handler.set("test","foobar") == "Yes"
+        assert handler.multi("test","foobar") == "Yes"
+
     def test_doubleset(self, handler):
         "Test double set"
         handler.create("test")

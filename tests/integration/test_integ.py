@@ -129,6 +129,17 @@ class TestInteg(object):
         server.sendall("set foobar test\n")
         assert fh.readline() == "Yes\n"
 
+    def test_bulk(self, servers):
+        "Tests setting bulk values"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("multi foobar test blah\n")
+        assert fh.readline() == "No No\n"
+        server.sendall("bulk foobar test blah\n")
+        assert fh.readline() == "Yes Yes\n"
+
     def test_doubleset(self, servers):
         "Tests setting a value"
         server, _ = servers
@@ -150,6 +161,19 @@ class TestInteg(object):
         assert fh.readline() == "Yes\n"
         server.sendall("check foobar test\n")
         assert fh.readline() == "Yes\n"
+
+    def test_multi(self, servers):
+        "Tests checking multiple values"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("multi foobar test test1 test2\n")
+        assert fh.readline() == "No No No\n"
+        server.sendall("set foobar test\n")
+        assert fh.readline() == "Yes\n"
+        server.sendall("multi foobar test test1 test2\n")
+        assert fh.readline() == "Yes No No\n"
 
     def test_set_check(self, servers):
         "Tests setting and checking many values"
