@@ -70,8 +70,10 @@ There are a total of 9 commands:
 * list - List all filters 
 * drop - Drop a filters (Deletes from disk)
 * close - Closes a filter (Unmaps, leaves on disk)
-* check - Check if a key is in a filter 
-* set - Set an item in a filter
+* check|c - Check if a key is in a filter 
+* multi|m - Checks if a list of keys are in a filter 
+* set|s - Set an item in a filter
+* bulk|b - Set many items in a filter at once
 * info - Gets info about a filter
 * flush - Flushes all filters or just a specified one
 * conf - Returns the default configuration, or the configuration of a single filter
@@ -117,6 +119,13 @@ Check and set look similar, they are either::
 
 The command must specify a filter and a key to use.
 They will either return "Yes", "No" or "Filter does not exist".
+
+    [multi|bulk] filter_name key1 [key_2 [key_3 [key_N]]]
+
+The bulk and multi commands are similar to check/set but allows for many keys
+to be set or checked at once. Keys must be separated by a space.
+The check, multi, set and bulk commands can also be called by their aliasses
+c, m, s and b.
 
 The ``info`` command takes a filter name, and returns
 information about the filter. Here is an example output::
