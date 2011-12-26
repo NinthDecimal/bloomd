@@ -175,6 +175,21 @@ class TestInteg(object):
         server.sendall("multi foobar test test1 test2\n")
         assert fh.readline() == "Yes No No\n"
 
+    def test_aliases(self, servers):
+        "Tests aliases"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("b foobar test test1 test2\n")
+        assert fh.readline() == "Yes Yes Yes\n"
+        server.sendall("s foobar test\n")
+        assert fh.readline() == "No\n"
+        server.sendall("m foobar test1 test2\n")
+        assert fh.readline() == "Yes Yes\n"
+        server.sendall("c foobar test\n")
+        assert fh.readline() == "Yes\n"
+
     def test_set_check(self, servers):
         "Tests setting and checking many values"
         server, _ = servers
