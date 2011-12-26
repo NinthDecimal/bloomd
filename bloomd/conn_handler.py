@@ -110,7 +110,7 @@ class APIHandler(object):
 
     @classmethod
     def m(cls, *args):
-        return cls.bulk(*args)
+        return cls.multi(*args)
 
     @classmethod
     def multi(cls, *args):
