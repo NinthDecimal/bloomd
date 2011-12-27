@@ -3,6 +3,7 @@
  * Added support for multi-key operations `bulk` and `multi`
  * Added command aliases for common operations
  * Contributors: Armon Dadgar, Markus Jelsma
+ * SHA: dc15a1b
 
 # 0.4.2
 
