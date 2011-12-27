@@ -1,3 +1,8 @@
+# 0.5.0
+ * Added support for multi-key operations `bulk` and `multi`
+ * Added command aliases for common operations
+ * Contributors: Armon Dadgar, Markus Jelsma
+
 # 0.4.2
 
  * Some bug fixes, more resilient to certain error cases
