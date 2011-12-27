@@ -120,10 +120,12 @@ Check and set look similar, they are either::
 The command must specify a filter and a key to use.
 They will either return "Yes", "No" or "Filter does not exist".
 
-    [multi|bulk] filter_name key1 [key_2 [key_3 [key_N]]]
 
 The bulk and multi commands are similar to check/set but allows for many keys
-to be set or checked at once. Keys must be separated by a space.
+to be set or checked at once. Keys must be separated by a space::
+
+    [multi|bulk] filter_name key1 [key_2 [key_3 [key_N]]]
+
 The check, multi, set and bulk commands can also be called by their aliasses
 c, m, s and b.
 
