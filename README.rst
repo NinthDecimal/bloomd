@@ -10,7 +10,7 @@ Features
 
 * Supports multiple scalable bloom filters
     - Starts small, grows to fit data
-* Asyncronously flushes filters to disk for persistence
+* Asynchronously flushes filters to disk for persistence
 * Supports in-memory only filters for high I/O
 * Automatically faults cold filters out of memory
 * Provides simple ASCII interface
