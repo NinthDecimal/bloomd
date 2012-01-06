@@ -34,6 +34,7 @@ def load_custom_settings(full_path, logger=None):
         if logger: logger.exception("Failed to load custom settings!")
         return {}
 
+
 class FilterManager(object):
     "Manages all the currently active filters in the system."
     def __init__(self, config):
@@ -120,6 +121,11 @@ class FilterManager(object):
             # Ignore any ProxyFilters
             filt = self.filters[name]
             if isinstance(filt, ProxyFilter): continue
+
+            # Warn about in-memory only filters that are cold
+            if filt.in_memory:
+                self.logger.warning("Filter '%s' is cold, but in-memory only. Cannot be faulted out." % name)
+                continue
 
             # Close the actual filter
             self.logger.info("Unmapping filter '%s'" % name)
@@ -212,12 +218,21 @@ class FilterManager(object):
             # Bail if the filter exists
             if name in self.filters: return self.filters[name]
 
-            # Create the path
-            path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
-            if not os.path.exists(path): os.mkdir(path)
+            # Get the filter config for in-memory
+            config = dict(self.config)
+            if custom:
+                config.update(custom)
+            in_memory = config["in_memory"]
+
+            # Create the path if not in-memory
+            discover = False
+            if not in_memory:
+                path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
+                if not os.path.exists(path): os.mkdir(path)
+                discover = True
 
             # Make a filter, not a proxy since it is probably hot
-            filt = Filter(self.config, name, path, custom=custom, discover=True)
+            filt = Filter(self.config, name, path, custom=custom, discover=discover)
             self.filters[name] = filt
             self.filter_locks[name] = ReadWriteLock()
             self.hot_filters.add(name)
