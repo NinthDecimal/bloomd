@@ -35,6 +35,13 @@ class APIHandler(object):
         if len(args) > 1:
             args = args[1].split(" ")
             custom = {}
+
+            # Check for in_memory being specified,
+            # remove it from the arguments
+            if "in_memory" in args:
+                custom["in_memory"] = True
+                args.remove("in_memory")
+
             if len(args) >= 1:
                 try:
                     capacity = custom["initial_capacity"] = int(args[0])
