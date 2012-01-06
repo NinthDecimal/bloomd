@@ -10,7 +10,8 @@ Features
 
 * Supports multiple scalable bloom filters
     - Starts small, grows to fit data
-* Periodically flushes filters to disk for persistence
+* Asyncronously flushes filters to disk for persistence
+* Supports in-memory only filters for high I/O
 * Automatically faults cold filters out of memory
 * Provides simple ASCII interface
     - Create / List / Drop filters 
@@ -80,7 +81,7 @@ There are a total of 9 commands:
 
 For the ``create`` command, the format is::
 
-    create filter_name [initial_capacity] [max_prob]
+    create filter_name [initial_capacity] [max_prob] [in_memory|on_disk]
 
 Where ``filter_name`` is the name of the filter,
 and can contain the characters a-z, A-Z, 0-9, ., _.
@@ -89,6 +90,9 @@ will be created to store at least that many items in the initial filter.
 Otherwise the configured default value will be used. 
 If a maximum false positive probability is provided,
 that will be used, otherwise the configured default is used.
+You can optionally specify in_memory to force the filter to not be
+persisted to disk, or on_disk to force the filter to perform
+async flushes.
 
 As an example::
 
