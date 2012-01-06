@@ -3,7 +3,7 @@
  * Added support in_memory only filters. Uses anonymous memory maps
    instead of file backed. They cannot be persisted, but have better
    I/O performance.
- * SHA: 
+ * SHA: 07900af
 
 # 0.5.0
 
