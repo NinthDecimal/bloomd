@@ -36,11 +36,14 @@ class APIHandler(object):
             args = args[1].split(" ")
             custom = {}
 
-            # Check for in_memory being specified,
+            # Check for in_memory or on_disk being specified,
             # remove it from the arguments
             if "in_memory" in args:
                 custom["in_memory"] = True
                 args.remove("in_memory")
+            if "on_disk" in args:
+                custom["in_memory"] = False
+                args.remove("on_disk")
 
             if len(args) >= 1:
                 try:
