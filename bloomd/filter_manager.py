@@ -58,6 +58,19 @@ class FilterManager(object):
     def _discover_filters(self):
         "Called to discover existing filters"
         content = os.listdir(self.config["data_dir"])
+
+        # If we default to in_memory instead of on_disk,
+        # then we need to override this config for the
+        # filters that we discover, because they are already
+        # on disk.
+        in_memory = self.config["in_memory"]
+        on_disk_config = self.config
+        if in_memory:
+            self.logger.warning("Daemon is configured to use in-memory filters by default. \
+ Existing on-disk filters will ignore this configuration.")
+            on_disk_config = dict(on_disk_config)
+            on_disk_config["in_memory"] = False
+
         for c in content:
             if FILTER_PREFIX not in c: continue
             full_path = os.path.join(self.config["data_dir"], c)
@@ -65,7 +78,7 @@ class FilterManager(object):
 
             filter_name = c.replace(FILTER_PREFIX, "")
             try:
-                filt = ProxyFilter(self, self.config, filter_name, full_path,
+                filt = ProxyFilter(self, on_disk_config, filter_name, full_path,
                                   custom=load_custom_settings(full_path, self.logger))
             except:
                 self.logger.error("Failed to load filter: %s" % filter_name)
