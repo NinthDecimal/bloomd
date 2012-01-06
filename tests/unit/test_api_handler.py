@@ -51,6 +51,14 @@ class TestAPI(object):
         "Tries to create a filter, custom params that are invalid"
         assert "Client Error" in handler.create("test", "0 1")
 
+    def test_create_in_memory(self, handler):
+        "Tries to create a filter, specify in_memory"
+        assert handler.create("test", "in_memory") == "Done"
+
+    def test_create_on_disk(self, handler):
+        "Tries to create a filter, specify on_disk"
+        assert handler.create("test", "on_disk") == "Done"
+
     def test_delete(self, handler):
         "Tries to delete a filter"
         assert handler.create("test") == "Done"

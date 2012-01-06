@@ -327,3 +327,41 @@ class TestInteg(object):
         t.start()
         loopset()
 
+    def test_create_in_memory(self, servers):
+        "Tests creating a filter in_memory, tries flush"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar in_memory\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("list\n")
+        assert fh.readline() == "START\n"
+        assert "foobar" in fh.readline()
+        assert fh.readline() == "END\n"
+        server.sendall("flush foobar\n")
+        assert fh.readline() == "Done\n"
+
+    def test_set_check_in_memory(self, servers):
+        "Tests setting and checking many values"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar in_memory\n")
+        assert fh.readline() == "Done\n"
+        for x in xrange(1000):
+            server.sendall("set foobar test%d\n" % x)
+            assert fh.readline() == "Yes\n"
+        for x in xrange(1000):
+            server.sendall("check foobar test%d\n" % x)
+            assert fh.readline() == "Yes\n"
+
+    def test_drop_in_memory(self, servers):
+        "Tests dropping a filter"
+        server, _ = servers
+        fh = server.makefile()
+        server.sendall("create foobar in_memory\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("drop foobar\n")
+        assert fh.readline() == "Done\n"
+        server.sendall("list\n")
+        assert fh.readline() == "START\n"
+        assert fh.readline() == "END\n"
+

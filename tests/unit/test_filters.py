@@ -142,6 +142,36 @@ class TestFilter(object):
         filter.flush()
         assert len(os.listdir(tmpdir)) == 3 # 2 mmap files + config
 
+    def test_filter_in_memory_property(self, config, tmpdir):
+        "Tests filter in_memory property"
+        filter = filter_manager.Filter(config, "test", tmpdir)
+        assert not filter.in_memory
+
+    def test_filter_in_memory_property_true(self, config, tmpdir):
+        "Tests filter in_memory property"
+        config["in_memory"] = True
+        filter = filter_manager.Filter(config, "test", tmpdir)
+        assert filter.in_memory
+
+    def test_filter_in_memory_filenames(self, config, tmpdir):
+        "Tests that the filename generation works with in_memory"
+        custom = {"initial_capacity":1000, "in_memory":True}
+        filter = filter_manager.Filter(config, "test", tmpdir, custom=custom)
+        assert len(filter.filter.filters) == 1
+        [filter.add("Test%d" %x) for x in xrange(2000)]
+        assert len(filter.filter.filters) == 2
+        filter.flush()
+        assert len(os.listdir(tmpdir)) == 0
+
+    def test_filter_in_memory_delete(self, config, tmpdir):
+        "Tests that the delete with in_memory works"
+        custom = {"initial_capacity":1000, "in_memory":True}
+        filter = filter_manager.Filter(config, "test", tmpdir, custom=custom)
+        [filter.add("Test%d" %x) for x in xrange(2000)]
+        assert len(filter.filter.filters) == 2
+        filter.delete()
+
+
 class TestProxyFilter(object):
     def test_filter_blank(self, config, tmpdir, manager):
         "Tests creating a blank proxy"
@@ -193,6 +223,15 @@ class TestProxyFilter(object):
 
         assert isinstance(manager.filters["test"], filter_manager.Filter)
         assert not any(contained)
+
+    def test_filter_in_memory_property(self, config, tmpdir, manager):
+        "Tests filter in_memory property"
+        filter = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        assert not filter.in_memory
+        config["in_memory"] = True
+        filter = filter_manager.ProxyFilter(manager, config, "test", tmpdir)
+        assert not filter.in_memory
+
 
 
 class TestFilterManager(object):
@@ -329,4 +368,46 @@ class TestFilterManager(object):
         assert "2" in f.filters["foo"]
         assert "3" in f.filters["foo"]
         f.close()
+
+    def test_recovery_in_memory(self, config, tmpdir):
+        "Tests recovering existing filters with in_memory=True as config"
+        config["data_dir"] = tmpdir
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        f.create_filter("bar")
+        f.create_filter("baz")
+        f.close()
+
+        config["in_memory"] = True
+        f = filter_manager.FilterManager(config)
+        assert "foo" in f
+        assert "bar" in f
+        assert "baz" in f
+
+    def test_in_memory_create(self, config, tmpdir):
+        "Makes a filter manager with in_memory config, should not make files."
+        config["data_dir"] = tmpdir
+        config["in_memory"] = True
+        f = filter_manager.FilterManager(config)
+        assert len(f) == 0
+        f.create_filter("foo")
+        assert os.listdir(tmpdir) == []
+
+    def test_in_memory_unmap_cold(self, config, tmpdir, treactor):
+        "Tests unmap does not happen with in_memory filters"
+        config["data_dir"] = tmpdir
+        config["in_memory"] = True
+        f = filter_manager.FilterManager(config)
+        f.create_filter("foo")
+        assert "foo" in f.hot_filters
+
+        # Marks it all as cold now
+        f._unmap_cold()
+        assert "foo" not in f.hot_filters
+
+        # Should not turn into a proxy
+        f._unmap_cold()
+        assert "foo" not in f.hot_filters
+        time.sleep(1) # Wait for the tasks
+        assert isinstance(f.filters["foo"], filter_manager.Filter)
 
