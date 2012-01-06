@@ -48,7 +48,7 @@ class Filter(object):
                                                    scale_size=self.config["scale_size"],
                                                    prob_reduction=self.config["probability_reduction"])
         self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d. In-Memory: %s"
-                         % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter)), self.in_memory)
+                         % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter), self.in_memory))
 
     def _next_file(self):
         "Returns the next filename to use for the scalable filter"
