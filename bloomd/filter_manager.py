@@ -239,6 +239,7 @@ class FilterManager(object):
 
             # Create the path if not in-memory
             discover = False
+            path = None
             if not in_memory:
                 path = os.path.join(self.config["data_dir"], FILTER_PREFIX+name)
                 if not os.path.exists(path): os.mkdir(path)
