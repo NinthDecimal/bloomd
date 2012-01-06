@@ -47,19 +47,31 @@ class Filter(object):
                                                    prob=self.config["default_probability"],
                                                    scale_size=self.config["scale_size"],
                                                    prob_reduction=self.config["probability_reduction"])
-        self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d"
-                         % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter)))
+        self.logger.info("Adding Filter: Bitmap size: %d Capacity: %d Size: %d. In-Memory: %s"
+                         % (self.filter.total_bitmap_size(), self.filter.total_capacity(), len(self.filter)), self.in_memory)
 
     def _next_file(self):
         "Returns the next filename to use for the scalable filter"
+        # If we are in-memory, return None, which creates an anonymous bitmap
+        if self.in_memory:
+            self.logger.info("Adding new anonymous bitmap")
+            return None
+
+        # Generate the next filename
         fileparts = [f for f in os.listdir(self.path) if ".mmap" in f]
         filename = os.path.join(self.path, "data.%03d.mmap" % len(fileparts))
         self.logger.info("Adding new file '%s'" % filename)
         return filename
 
+    @property
+    def in_memory(self):
+        "Convenience property to check if we are in-memory"
+        return self.config["in_memory"]
+
     def flush(self):
         "Invoked to force flushing the filter to disk"
         if not self.dirty: return
+        if self.in_memory: return
         # Save some information about the filters
         self.config["size"] = len(self)
         self.config["capacity"] = self.capacity()
@@ -94,11 +106,14 @@ class Filter(object):
 
     def delete(self):
         "Deletes the filter"
-        # Remove all the files
+        # Close everything first
         self.close()
-        [os.remove(os.path.join(self.path,f)) for f in os.listdir(self.path) if (".mmap" in f or f == "config")]
 
-        # Remove the dir
+        # If we are in-memory, nothing to remove
+        if self.in_memory: return
+
+        # Remove all the files
+        [os.remove(os.path.join(self.path,f)) for f in os.listdir(self.path) if (".mmap" in f or f == "config")]
         os.rmdir(self.path)
         self.logger.info("Deleted filter")
 
@@ -168,6 +183,11 @@ class ProxyFilter(object):
 
     def __contains__(self, *args, **kwargs):
         return self._fault_attr("__contains__", *args, **kwargs)
+
+    @property
+    def in_memory(self):
+        "By definition, we cannot proxy an in-memory only filter."
+        return False
 
     def add(self, *args, **kwargs):
         return self._fault_attr("add", *args, **kwargs)
