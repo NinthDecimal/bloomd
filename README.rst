@@ -1,3 +1,7 @@
+**NOTE:**  This version has been deprecated in favor of https://github.com/armon/bloomd, which provides
+API compatibility but is much faster and more scalable.
+
+
 Bloomd
 =========
 
@@ -14,7 +18,7 @@ Features
 * Supports in-memory only filters for high I/O
 * Automatically faults cold filters out of memory
 * Provides simple ASCII interface
-    - Create / List / Drop filters 
+    - Create / List / Drop filters
     - Check / Set values in filters
     - Flush filters
     - Get configuration
@@ -28,7 +32,7 @@ Install
 -------
 
 Download and install from source::
-    
+
     python setup.py install
 
 Usage
@@ -68,11 +72,11 @@ and ending the line in a newline (carriage return is optional).
 There are a total of 9 commands:
 
 * create - Create a new filter (a filter is a named bloom filter)
-* list - List all filters 
+* list - List all filters
 * drop - Drop a filters (Deletes from disk)
 * close - Closes a filter (Unmaps, leaves on disk)
-* check|c - Check if a key is in a filter 
-* multi|m - Checks if a list of keys are in a filter 
+* check|c - Check if a key is in a filter
+* multi|m - Checks if a list of keys are in a filter
 * set|s - Set an item in a filter
 * bulk|b - Set many items in a filter at once
 * info - Gets info about a filter
@@ -87,7 +91,7 @@ Where ``filter_name`` is the name of the filter,
 and can contain the characters a-z, A-Z, 0-9, ., _.
 If an initial capacity is provided the filter
 will be created to store at least that many items in the initial filter.
-Otherwise the configured default value will be used. 
+Otherwise the configured default value will be used.
 If a maximum false positive probability is provided,
 that will be used, otherwise the configured default is used.
 You can optionally specify in_memory to force the filter to not be
@@ -107,7 +111,7 @@ about all the filters. Here is an example response::
 
     START
     foobar 0.001 1797211 1000000 0
-    END 
+    END
 
 This indicates a single filter named foobar, with a probability
 of 0.001 of false positives, a 1.79MB size, a current capacity of
@@ -176,7 +180,7 @@ An example output is::
     default_probability 1e-04
     data_dir /tmp/bloomd
     probability_reduction 0.9
-    initial_capacity 1000000 
+    initial_capacity 1000000
     flush_interval 60
     log_level DEBUG
     log_file /tmp/bloomd/bloomd.log
@@ -186,10 +190,10 @@ An example output is::
 
 
 UDP Protocol
---------
+------------
 
 In addition to the TCP protocol, Bloomd also provides a UDP interface
-to avoid the overhead of establishing TCP connections. By default, 
+to avoid the overhead of establishing TCP connections. By default,
 Bloomd will listen for UDP connections on port 8674. The commands are the
 exact same as the TCP version.
 
