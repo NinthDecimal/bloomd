@@ -48,7 +48,7 @@ Here is an example configuration file:
     port = 8673
     udp_port = 8674
     data_dir = /mnt/bloomd
-    log_dir = /var/log/bloomd.log
+    log_file = /var/log/bloomd.log
     log_level = INFO
 
 
