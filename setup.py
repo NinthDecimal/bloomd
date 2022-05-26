@@ -23,7 +23,7 @@ setup(name='bloomd',
       entry_points = {
         "console_scripts": ["bloomd = bloomd.bin.bloomd:main"],
       },
-      install_requires = ["twisted==20.3.0","pyblooming==0.4.0"],
+      install_requires = ["twisted==22.4.0","pyblooming==0.4.0"],
       classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
